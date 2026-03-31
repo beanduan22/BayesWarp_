@@ -5,19 +5,6 @@
 
 **BayesWarp** is a framework for white-box testing of deep neural networks, leveraging Bayesian optimization and interpretability techniques to systematically uncover diverse model failures while keeping generated samples close to the original data distribution.
 
-This repository implements the **full BayesWarp pipeline** from the paper draft you provided:
-- decision-critical region localization from saliency maps,
-- grid-parameterized localized mutation,
-- Bayesian-guided search with an inducing-point GP surrogate,
-- adaptive target-class scheduling,
-- ablations: `w/o Localization`, `w/o Bayesian`,
-- model training, failure generation, evaluation, and fine-tuning.
-
-It also includes:
-- reproducible YAML configs,
-- smoke tests,
-- plotting/aggregation helpers,
-- baseline adapter stubs for plugging in official ADAPT / NSGen / SUNTest repos.
 
 ## Fully Implemented
 
