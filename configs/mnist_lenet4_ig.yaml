@@ -1,0 +1,35 @@
+seed: 123
+output_dir: results/mnist_lenet4_ig
+dataset:
+  name: mnist
+  root: ./data
+  normalization: none
+  image_size: 28
+model:
+  name: lenet4
+  pretrained: false
+checkpoint: results/mnist_lenet4/best.pt
+train:
+  batch_size: 128
+  lr: 0.001
+  epochs: 20
+  num_workers: 4
+test:
+  num_seeds: 100
+finetune:
+  epochs: 10
+bayeswarp:
+  saliency_method: integrated_gradients
+  alpha: 0.1
+  area_min: 25
+  tau_iou: 0.3
+  d_max: 6
+  rho: 0.6
+  S: 32
+  eta: 0.1
+  beta: 0.03
+  epsilon: 0.0005
+  kappa: 1.0
+  n: 1
+  m: 64
+  per_class_budget: 1000
