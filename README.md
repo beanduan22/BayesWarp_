@@ -1,8 +1,9 @@
 # BayesWarp
 
-A cleaned, GitHub-ready experimental codebase for the paper:
 
 **Testing Neural Networks via Bayesian-Guided Exploration of Decision Landscapes**
+
+**BayesWarp** is a framework for white-box testing of deep neural networks, leveraging Bayesian optimization and interpretability techniques to systematically uncover diverse model failures while keeping generated samples close to the original data distribution.
 
 This repository implements the **full BayesWarp pipeline** from the paper draft you provided:
 - decision-critical region localization from saliency maps,
@@ -18,7 +19,7 @@ It also includes:
 - plotting/aggregation helpers,
 - baseline adapter stubs for plugging in official ADAPT / NSGen / SUNTest repos.
 
-## What is fully implemented here
+## Fully Implemented
 
 - **BayesWarp-C** (Grad-CAM)
 - **BayesWarp-I** (Integrated Gradients)
@@ -29,15 +30,6 @@ It also includes:
 - **Metrics**: NoF, FSR, TPF, DoF, NC, TKNC, CNC
 - **Optional metrics**: FID and SCS (require optional dependencies)
 
-## What is intentionally left as adapters
-
-Your paper text does **not** contain enough algorithmic detail to claim exact re-implementations of:
-- ADAPT
-- NSGen
-- SUNTest
-
-So this repo includes **adapter interfaces** instead of pretending those baselines are fully reproduced.
-That keeps the GitHub repo honest and publication-safe.
 
 ## Environment
 
@@ -48,7 +40,7 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-For CIFAR-10 / ImageNet / optional FID / optional SCS, also install:
+For CIFAR-10 / ImageNet / FID / SCS, also install:
 
 ```bash
 pip install torchvision open-clip-torch torchmetrics
@@ -57,7 +49,7 @@ pip install torchvision open-clip-torch torchmetrics
 ## Repository structure
 
 ```text
-bayeswarp_repo_verified/
+bayeswarp/
 ├── configs/
 ├── scripts/
 ├── src/bayeswarp/
@@ -107,28 +99,3 @@ python evaluate_results.py --config configs/mnist_lenet5_smoothgrad.yaml   --fai
 python finetune_with_failures.py --config configs/mnist_lenet5_smoothgrad.yaml   --failures results/mnist_lenet5_smoothgrad/failures_main.pt
 ```
 
-## Reproduce the full paper pipeline
-
-See:
-- `scripts/reproduce_paper.sh`
-- `scripts/aggregate_results.py`
-- `scripts/plot_metrics.py`
-
-## Validation
-
-This cleaned version has been structured to avoid empty folders and placeholder files.
-Run the built-in validation:
-
-```bash
-python scripts/verify_repo.py
-```
-
-## Citation
-
-```bibtex
-@misc{bayeswarp2026,
-  title={Testing Neural Networks via Bayesian-Guided Exploration of Decision Landscapes},
-  author={Bin Duan and Meiru Che and Guowei Yang},
-  year={2026}
-}
-```
