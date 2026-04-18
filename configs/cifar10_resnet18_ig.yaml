@@ -1,0 +1,35 @@
+seed: 123
+output_dir: results/cifar10_resnet18_ig
+dataset:
+  name: cifar10
+  root: ./data
+  normalization: imagenet
+  image_size: 32
+model:
+  name: resnet18
+  pretrained: true
+checkpoint: results/cifar10_resnet18/best.pt
+train:
+  batch_size: 128
+  lr: 0.0001
+  epochs: 30
+  num_workers: 4
+test:
+  num_seeds: 100
+finetune:
+  epochs: 10
+bayeswarp:
+  saliency_method: integrated_gradients
+  alpha: 0.1
+  area_min: 50
+  tau_iou: 0.3
+  d_max: 6
+  rho: 0.6
+  S: 32
+  eta: 0.1
+  beta: 0.03
+  epsilon: 0.001
+  kappa: 1.0
+  n: 2
+  m: 128
+  per_class_budget: 1111
