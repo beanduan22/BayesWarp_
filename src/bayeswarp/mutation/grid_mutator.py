@@ -1,17 +1,27 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple
+
 import torch
 import torch.nn.functional as F
 
 
 @dataclass
 class GridMutator:
+    """Grid parameterization of mutations restricted to the critical region.
+
+    Mutations live on a coarse ``n x n`` grid per channel. A grid parameter
+    vector ``u`` is mapped to pixel space by ``I_R``: bilinear upsampling to the
+    image resolution followed by restriction to the critical region ``R``. Every
+    input is reconstructed relative to the seed as ``x(u) = clip_p(x0 + I_R(u))``,
+    so the accumulated mutation is never repeatedly added to the current input.
+    """
+
     image_shape: Tuple[int, int, int]
     region_mask: torch.Tensor
     n: int
-    clip_min: float = -0.1
-    clip_max: float = 0.1
+    r: float = 0.1
+    eta: float = 0.1
 
     def __post_init__(self):
         c, h, w = self.image_shape
@@ -26,38 +36,27 @@ class GridMutator:
     def zero_params(self, device: torch.device) -> torch.Tensor:
         return torch.zeros(self.dim, device=device)
 
-    def sample_candidate_deltas(self, current_u: torch.Tensor, S: int, delta_scale: float = 0.05) -> torch.Tensor:
-        candidates = []
-        for _ in range(S):
-            delta = (torch.rand_like(current_u) * 2 - 1) * delta_scale
-            candidates.append((current_u + delta).clamp(self.clip_min, self.clip_max))
-        return torch.stack(candidates, dim=0)
+    def clip_u(self, u: torch.Tensor) -> torch.Tensor:
+        """Element-wise projection of grid parameters onto [-r, r]."""
+        return u.clamp(-self.r, self.r)
 
-    def upsample(self, u: torch.Tensor) -> torch.Tensor:
+    def sample_deltas(self, S: int, device: torch.device, delta_scale: float = 0.05) -> torch.Tensor:
+        """Sample S candidate increments from a bounded uniform distribution."""
+        return (torch.rand(S, self.dim, device=device) * 2.0 - 1.0) * delta_scale
+
+    def interpolate_to_region(self, u: torch.Tensor) -> torch.Tensor:
+        """I_R(u): bilinear upsampling followed by restriction to the region."""
         grid = u.view(1, self.c, self.n, self.n)
         up = F.interpolate(grid, size=(self.h, self.w), mode='bilinear', align_corners=False)
         return up.squeeze(0) * self.region_mask.to(u.device)
 
-    @staticmethod
-    def clip_to_seed_range(x: torch.Tensor, x_seed: torch.Tensor, eta: float) -> torch.Tensor:
+    def clip_p(self, x: torch.Tensor, x_seed: torch.Tensor) -> torch.Tensor:
+        """Project pixels onto the relaxed original pixel range."""
         pmin = float(x_seed.min().item())
         pmax = float(x_seed.max().item())
-        lo = pmin - eta * (pmax - pmin)
-        hi = pmax + eta * (pmax - pmin)
-        return x.clamp(lo, hi)
+        span = pmax - pmin
+        return x.clamp(pmin - self.eta * span, pmax + self.eta * span)
 
-    def apply_step(
-        self,
-        x_current: torch.Tensor,
-        delta_u: torch.Tensor,
-        x_seed: torch.Tensor,
-        eta: float = 0.1,
-    ) -> torch.Tensor:
-        delta_x = self.upsample(delta_u)
-        x_new = x_current + delta_x
-        return self.clip_to_seed_range(x_new, x_seed, eta)
-
-    def apply(self, x: torch.Tensor, u: torch.Tensor, eta: float = 0.1) -> torch.Tensor:
-        delta_x = self.upsample(u)
-        x_new = x + delta_x
-        return self.clip_to_seed_range(x_new, x, eta)
+    def reconstruct(self, u: torch.Tensor, x_seed: torch.Tensor) -> torch.Tensor:
+        """x(u) = clip_p(x0 + I_R(u)), always relative to the seed."""
+        return self.clip_p(x_seed + self.interpolate_to_region(u), x_seed)

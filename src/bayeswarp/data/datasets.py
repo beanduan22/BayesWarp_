@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 import torch
 from torch.utils.data import DataLoader, Subset
 
@@ -102,14 +102,39 @@ def build_loaders(name: str, root: str, batch_size: int, num_workers: int = 4, n
     return train_loader, test_loader
 
 
+def build_seed_dataset(name: str, root: str, normalization: str = 'none', image_size: Optional[int] = None):
+    """Training split under the deterministic (test) transform.
+
+    Input seeds must be reproducible: the augmented training transform would
+    resample a different image every time an index is read, so the sample that
+    was checked as correctly classified would not be the one actually tested.
+    """
+    datasets, _ = _tv()
+    name = name.lower()
+    _, test_tf = build_transforms(name, normalization=normalization, image_size=image_size)
+    if name == 'mnist':
+        return datasets.MNIST(root=root, train=True, download=True, transform=test_tf)
+    if name == 'cifar10':
+        return datasets.CIFAR10(root=root, train=True, download=True, transform=test_tf)
+    if name == 'imagenet':
+        return datasets.ImageFolder(root=f'{root}/train', transform=test_tf)
+    raise ValueError(f'Unsupported dataset: {name}')
+
+
 @torch.no_grad()
-def select_correctly_classified_seeds(model, dataset, device, num_seeds: int = 100):
+def select_correctly_classified_seeds(model, dataset, device, num_seeds: int = 100, seed: int = 0):
+    """Randomly select `num_seeds` correctly classified samples.
+
+    Candidates are visited in a seeded random order so the seed set is a random
+    sample of the split rather than its first entries, and is reproducible.
+    """
     model.eval()
+    generator = torch.Generator().manual_seed(int(seed))
+    order = torch.randperm(len(dataset), generator=generator).tolist()
     indices = []
-    for idx in range(len(dataset)):
+    for idx in order:
         x, y = dataset[idx]
-        x = x.unsqueeze(0).to(device)
-        pred = model(x).argmax(dim=1).item()
+        pred = int(model(x.unsqueeze(0).to(device)).argmax(dim=1).item())
         if pred == int(y):
             indices.append(idx)
         if len(indices) >= num_seeds:

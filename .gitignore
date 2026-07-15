@@ -1,3 +1,10 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Datasets downloaded on first run
+data/
+imagenet/
+
+# Run artifacts: checkpoints, generated test cases, metrics
+results/

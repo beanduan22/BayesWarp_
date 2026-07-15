@@ -88,15 +88,28 @@ def merge_nearby_boxes(boxes: List[Box], tau_iou: float, d_max: float) -> List[B
     return boxes
 
 
+def union_area(boxes: List[Box], image_shape: Tuple[int, int]) -> int:
+    """Area of the union of the boxes, so overlaps are not counted twice."""
+    if not boxes:
+        return 0
+    return int(boxes_to_mask(boxes, image_shape).sum())
+
+
 def select_boxes_by_budget(boxes: List[Box], image_shape: Tuple[int, int], rho: float) -> List[Box]:
+    """Greedily select boxes by saliency mass until the covered area reaches rho.
+
+    Boxes are taken in descending saliency-mass order and selection stops as
+    soon as the next box would push the covered area past the budget. The
+    constraint bounds the area of the *union* of the selected boxes, so boxes
+    that still overlap after merging do not inflate the measured coverage.
+    """
     H, W = image_shape
     max_area = rho * H * W
-    selected = []
-    used_area = 0
+    selected: List[Box] = []
     for box in sorted(boxes, key=lambda b: b.saliency_mass, reverse=True):
-        if used_area + box.area <= max_area or not selected:
-            selected.append(box)
-            used_area += box.area
+        if union_area(selected + [box], image_shape) > max_area:
+            break
+        selected.append(box)
     return selected
 
 
@@ -109,13 +122,27 @@ def boxes_to_mask(boxes: List[Box], image_shape: Tuple[int, int]) -> np.ndarray:
 
 
 def localize_critical_region(saliency: np.ndarray, alpha: float, area_min: int, tau_iou: float, d_max: float, rho: float):
+    """Build the critical region R from a saliency map.
+
+    Threshold at the (1-alpha) quantile, extract 8-connected components, discard
+    those smaller than `area_min`, enclose each in a minimal bounding box, merge
+    overlapping or nearby boxes, and greedily select by saliency mass subject to
+    the coverage budget `rho`. R is the union of the selected boxes.
+
+    Returns the region mask and the selected boxes.
+    """
     mask = top_alpha_mask(saliency, alpha)
     boxes = extract_components(mask, saliency, area_min)
     boxes = merge_nearby_boxes(boxes, tau_iou=tau_iou, d_max=d_max)
     boxes = select_boxes_by_budget(boxes, saliency.shape, rho)
-    if len(boxes) == 0:
-        fallback_mask = top_alpha_mask(saliency, alpha).astype(np.float32)
-        if fallback_mask.sum() == 0:
-            fallback_mask = np.ones_like(saliency, dtype=np.float32)
-        return fallback_mask, []
-    return boxes_to_mask(boxes, saliency.shape), boxes
+    if boxes:
+        return boxes_to_mask(boxes, saliency.shape), boxes
+
+    fallback = top_alpha_mask(saliency, alpha).astype(np.float32)
+    if fallback.sum() == 0:
+
+        raise ValueError(
+            'Saliency map is constant: no critical region can be localized. '
+            'Check the saliency method and the target model.'
+        )
+    return fallback, []
