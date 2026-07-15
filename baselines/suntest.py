@@ -205,15 +205,20 @@ class SUNTest(Baseline):
         accept = min(1.0, (1.0 - p) ** (ranks[candidate] - ranks[current]))
         return candidate if rng.random() < accept else current
 
-    def _fitness(self, feats: torch.Tensor, found: List[torch.Tensor], rng: np.random.Generator) -> float:
-        """F(x) = f(x), plus the diversity term g(x) once cases exist."""
+    def _fitness(self, feats: torch.Tensor, found: Optional[torch.Tensor], rng: np.random.Generator) -> float:
+        """F(x) = f(x), plus the diversity term g(x) once cases exist.
+
+        `found` is a single (N, D) tensor so the nearest-neighbour distance is
+        one vectorized reduction; iterating it in Python forces a device
+        synchronisation per stored case and turns the search quadratic.
+        """
         idx = self.suspicious
         keep = max(1, int(round(len(idx) * self.q)))
         subset = idx[torch.from_numpy(rng.permutation(len(idx))[:keep].copy())]
         f = float(feats[subset].sum().item())
-        if not found:
+        if found is None or found.size(0) == 0:
             return f
-        g = min(float((feats - other).norm(p=2).item()) for other in found)
+        g = float((found - feats.unsqueeze(0)).norm(p=2, dim=1).min().item())
         return f + g
 
     def generate(self, x0: torch.Tensor, oracle: BudgetedOracle) -> None:
@@ -227,7 +232,7 @@ class SUNTest(Baseline):
 
         current = x0.clone()
         current_feats = self.penultimate(current).squeeze(0)
-        found: List[torch.Tensor] = []
+        found: Optional[torch.Tensor] = None
         f_max = self._fitness(current_feats, found, rng)
         op_idx: Optional[int] = None
 
@@ -252,7 +257,8 @@ class SUNTest(Baseline):
 
                 self.triggered[op_idx] += 1
                 self.fault_types[op_idx].add((int(oracle.og), label))
-                found.append(feats.detach())
+                row = feats.detach().unsqueeze(0)
+                found = row if found is None else torch.cat([found, row], dim=0)
             else:
                 fitness = self._fitness(feats, found, rng)
                 if fitness > f_max:
