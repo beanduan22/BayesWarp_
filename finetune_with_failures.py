@@ -44,9 +44,11 @@ def evaluate(model, loader, device):
 
 
 def balanced_failure_subset(failure_bank, num_failures: int):
+    """Distribute the selection as evenly as possible across source seeds and
+    predicted classes."""
     groups = defaultdict(list)
     for item in failure_bank:
-        groups[(item['seed_idx'], item['target_class'])].append(item)
+        groups[(item['seed_idx'], item['pred'])].append(item)
     keys = list(groups.keys())
     selected = []
     while len(selected) < num_failures and keys:

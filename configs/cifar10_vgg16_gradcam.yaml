@@ -27,9 +27,12 @@ bayeswarp:
   rho: 0.6
   S: 32
   eta: 0.1
-  beta: 0.03
+  r: 0.1
+  beta_min: 0.01
+  beta_max: 0.05
   epsilon: 0.001
   kappa: 1.0
   n: 2
   m: 128
-  per_class_budget: 1111
+  budget: 10000
+  max_target_classes: 9
