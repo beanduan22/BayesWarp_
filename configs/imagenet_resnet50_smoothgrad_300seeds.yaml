@@ -1,0 +1,39 @@
+seed: 123
+output_dir: results/imagenet_resnet50_smoothgrad_300seeds
+dataset:
+  name: imagenet
+  root: ./imagenet
+  normalization: imagenet
+  image_size: 224
+  seed_split: train
+model:
+  name: resnet50
+  pretrained: true
+checkpoint: null
+train:
+  batch_size: 64
+  lr: 0.0001
+  epochs: 1
+  num_workers: 8
+test:
+  num_seeds: 300
+finetune:
+  epochs: 10
+bayeswarp:
+  saliency_method: smoothgrad
+  alpha: 0.1
+  area_min: 250
+  tau_iou: 0.3
+  d_max: 6
+  rho: 0.6
+  S: 32
+  eta: 0.1
+  r: 0.1
+  beta_min: 0.01
+  beta_max: 0.05
+  epsilon: 0.005
+  kappa: 1.0
+  n: 4
+  m: 256
+  budget: 10000
+  max_target_classes: 999

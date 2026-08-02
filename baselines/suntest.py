@@ -1,10 +1,3 @@
-"""SUNTest. Reimplementation of Guo et al., "White-Box Test Input Generation for
-Enhancing Deep Neural Network Models through Suspicious Neuron Awareness",
-ACM TOSEM 2025.
-
-The reward function follows the reference implementation, which differs from
-Eq. 7 of the paper. Localization samples a bounded subset of the training split.
-"""
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
@@ -69,11 +62,6 @@ class SUNTest(Baseline):
         return linears[-1]
 
     def forward_with_features(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """One forward returning (logits, penultimate features).
-
-        The penultimate layer -- the features entering the final classifier -- is
-        SUNTest's target layer.
-        """
         captured: Dict[str, torch.Tensor] = {}
 
         def pre_hook(_m, inputs):
@@ -88,7 +76,6 @@ class SUNTest(Baseline):
         return self.forward_with_features(x)[1]
 
     def prepare(self, train_dataset) -> None:
-        """Stage 1: dynamic thresholds, spectra, and suspicious neurons."""
         n = min(self.localization_samples, len(train_dataset))
         generator = torch.Generator().manual_seed(0)
         indices = torch.randperm(len(train_dataset), generator=generator)[:n].tolist()
@@ -187,13 +174,11 @@ class SUNTest(Baseline):
         return x
 
     def _rewards(self) -> np.ndarray:
-        """Reward per operator, following the reference implementation."""
         return (self.improved / (self.selected + self.eps)) * (
             np.array([len(s) for s in self.fault_types]) / (self.triggered + self.eps)
         )
 
     def _select_operator(self, current: Optional[int], rng: np.random.Generator) -> int:
-        """Metropolis-Hastings selection over the reward ranking."""
         if current is None:
             return int(rng.integers(len(self.OPERATORS)))
         rewards = self._rewards()
@@ -206,12 +191,6 @@ class SUNTest(Baseline):
         return candidate if rng.random() < accept else current
 
     def _fitness(self, feats: torch.Tensor, found: Optional[torch.Tensor], rng: np.random.Generator) -> float:
-        """F(x) = f(x), plus the diversity term g(x) once cases exist.
-
-        `found` is a single (N, D) tensor so the nearest-neighbour distance is
-        one vectorized reduction; iterating it in Python forces a device
-        synchronisation per stored case and turns the search quadratic.
-        """
         idx = self.suspicious
         keep = max(1, int(round(len(idx) * self.q)))
         subset = idx[torch.from_numpy(rng.permutation(len(idx))[:keep].copy())]

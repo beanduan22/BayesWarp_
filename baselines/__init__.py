@@ -1,4 +1,3 @@
-"""Baseline DNN testing methods, run under BayesWarp's controlled conditions."""
 from __future__ import annotations
 
 from typing import Dict, Type

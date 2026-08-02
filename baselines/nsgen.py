@@ -1,11 +1,3 @@
-"""NSGen. Reimplementation of Huang et al., "Neuron Semantic-Guided Test
-Generation for Deep Neural Networks Fuzzing", ACM TOSEM.
-
-The reference derives neuron semantics from MILAN captions compared with the
-CLIP text encoder; those artifacts are not distributed, so this compares the
-underlying semantic descriptor (decision-path units and pseudo-labels) with
-Jaccard similarity. Style-transfer mutations are omitted.
-"""
 from __future__ import annotations
 
 from typing import Dict, FrozenSet, List, Tuple
@@ -23,7 +15,6 @@ DEFAULT_PSEUDO_TOPK = {'imagenet': 3, 'cifar10': 1, 'mnist': 1}
 
 
 def _affine(x: torch.Tensor, kind: str, rng: torch.Generator) -> torch.Tensor:
-    """G operators: translation, scale, rotation."""
     n, c, h, w = x.shape
     theta = torch.zeros(n, 2, 3, device=x.device)
     theta[:, 0, 0] = 1.0
@@ -48,7 +39,6 @@ def _affine(x: torch.Tensor, kind: str, rng: torch.Generator) -> torch.Tensor:
 
 
 def _pixel(x: torch.Tensor, kind: str, span: float, rng: torch.Generator) -> torch.Tensor:
-    """P operators: contrast, brightness, blur."""
     if kind == 'contrast':
         factor = 0.8 + 1.2 * float(torch.rand(1, generator=rng).item())
         return (x - x.mean()) * factor + x.mean()
@@ -100,14 +90,6 @@ class NSGen(Baseline):
         return layers
 
     def semantics(self, x: torch.Tensor) -> Tuple[FrozenSet, torch.Tensor]:
-        """Semantic descriptor of `x`: decision-path units plus pseudo-labels.
-
-        The decision path is the top critical channel per instrumented layer,
-        ranked by gradient x activation attribution to the predicted class. This
-        stands in for the reference's LayerConductance attribution.
-
-        Returns the descriptor set and the logits from the same forward pass.
-        """
         acts: Dict[str, torch.Tensor] = {}
         handles = []
         for name, module in self.layers:
@@ -146,7 +128,6 @@ class NSGen(Baseline):
         return len(a & b) / union if union else 1.0
 
     def _mutate(self, x: torch.Tensor, state: int, span: float, rng: torch.Generator) -> Tuple[torch.Tensor, int]:
-        """Two-state scheme: affine allowed only while state == 0."""
         if state == 0 and torch.rand(1, generator=rng).item() < 0.5:
             kind = self.AFFINE_OPS[int(torch.randint(len(self.AFFINE_OPS), (1,), generator=rng).item())]
             return _affine(x, kind, rng), 1
@@ -154,7 +135,6 @@ class NSGen(Baseline):
         return _pixel(x, kind, span, rng), state
 
     def _satisfies_constraint(self, x: torch.Tensor, x0: torch.Tensor, span: float) -> bool:
-        """Metamorphic distance constraint from DeepHunter."""
         changed = int((x - x0).abs().gt(1e-6).sum().item())
         active = max(1, int(x0.gt(0).sum().item()))
         linf = float((x - x0).abs().max().item())

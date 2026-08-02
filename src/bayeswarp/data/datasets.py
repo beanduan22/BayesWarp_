@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 import torch
 from torch.utils.data import DataLoader, Subset
 
@@ -10,9 +10,22 @@ _DATASET_META = {
     'imagenet': {'num_classes': 1000, 'channels': 3, 'size': 224},
 }
 
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
+
 
 def dataset_meta(name: str) -> Dict:
     return _DATASET_META[name.lower()]
+
+
+def pixel_range(name: str, normalization: str = 'none') -> Tuple[torch.Tensor, torch.Tensor]:
+    channels = dataset_meta(name)['channels']
+    if normalization == 'imagenet' and channels == 3:
+        mean = torch.tensor(IMAGENET_MEAN).view(channels, 1, 1)
+        std = torch.tensor(IMAGENET_STD).view(channels, 1, 1)
+        return (0.0 - mean) / std, (1.0 - mean) / std
+    zeros = torch.zeros(channels, 1, 1)
+    return zeros, zeros + 1.0
 
 
 def _tv():
@@ -27,12 +40,12 @@ def _tv():
 
 
 def build_transforms(name: str, normalization: str = 'none', image_size: Optional[int] = None):
-    datasets, transforms = _tv()
+    _, transforms = _tv()
     name = name.lower()
     mean, std = None, None
     if normalization == 'imagenet':
-        mean = [0.485, 0.456, 0.406]
-        std = [0.229, 0.224, 0.225]
+        mean = IMAGENET_MEAN
+        std = IMAGENET_STD
 
     def maybe_norm(tf_list, channels: int):
         if mean is not None and channels == 3:
@@ -77,6 +90,24 @@ def build_transforms(name: str, normalization: str = 'none', image_size: Optiona
     return train_tf, test_tf
 
 
+def standard_augmentation(name: str):
+    _, transforms = _tv()
+    name = name.lower()
+    if name == 'mnist':
+        return transforms.Compose([])
+    if name == 'cifar10':
+        return transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+        ])
+    if name == 'imagenet':
+        return transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+        ])
+    raise ValueError(f'Unsupported dataset: {name}')
+
+
 def build_datasets(name: str, root: str, normalization: str = 'none', image_size: Optional[int] = None):
     datasets, _ = _tv()
     name = name.lower()
@@ -102,41 +133,43 @@ def build_loaders(name: str, root: str, batch_size: int, num_workers: int = 4, n
     return train_loader, test_loader
 
 
-def build_seed_dataset(name: str, root: str, normalization: str = 'none', image_size: Optional[int] = None):
-    """Training split under the deterministic (test) transform.
-
-    Input seeds must be reproducible: the augmented training transform would
-    resample a different image every time an index is read, so the sample that
-    was checked as correctly classified would not be the one actually tested.
-    """
+def build_seed_dataset(
+    name: str,
+    root: str,
+    normalization: str = 'none',
+    image_size: Optional[int] = None,
+    split: str = 'train',
+):
     datasets, _ = _tv()
     name = name.lower()
+    if split not in ('train', 'val'):
+        raise ValueError(f"split must be 'train' or 'val', got {split!r}")
     _, test_tf = build_transforms(name, normalization=normalization, image_size=image_size)
     if name == 'mnist':
-        return datasets.MNIST(root=root, train=True, download=True, transform=test_tf)
+        return datasets.MNIST(root=root, train=(split == 'train'), download=True, transform=test_tf)
     if name == 'cifar10':
-        return datasets.CIFAR10(root=root, train=True, download=True, transform=test_tf)
+        return datasets.CIFAR10(root=root, train=(split == 'train'), download=True, transform=test_tf)
     if name == 'imagenet':
-        return datasets.ImageFolder(root=f'{root}/train', transform=test_tf)
+        return datasets.ImageFolder(root=f'{root}/{split}', transform=test_tf)
     raise ValueError(f'Unsupported dataset: {name}')
 
 
 @torch.no_grad()
-def select_correctly_classified_seeds(model, dataset, device, num_seeds: int = 100, seed: int = 0):
-    """Randomly select `num_seeds` correctly classified samples.
-
-    Candidates are visited in a seeded random order so the seed set is a random
-    sample of the split rather than its first entries, and is reproducible.
-    """
+def select_correctly_classified_seeds(model, dataset, device, num_seeds: int = 100, seed: int = 0, skip: int = 0):
     model.eval()
     generator = torch.Generator().manual_seed(int(seed))
     order = torch.randperm(len(dataset), generator=generator).tolist()
     indices = []
+    matched = 0
     for idx in order:
         x, y = dataset[idx]
         pred = int(model(x.unsqueeze(0).to(device)).argmax(dim=1).item())
-        if pred == int(y):
-            indices.append(idx)
+        if pred != int(y):
+            continue
+        matched += 1
+        if matched <= skip:
+            continue
+        indices.append(idx)
         if len(indices) >= num_seeds:
             break
     return Subset(dataset, indices)
