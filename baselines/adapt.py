@@ -1,10 +1,3 @@
-"""ADAPT. PyTorch port of Lee et al., "Effective White-Box Testing of Deep
-Neural Networks with Adaptive Neuron-Selection Strategy", ISSTA 2020
-(https://github.com/kupl/adapt, MIT).
-
-Feature f7 is set from the 30-40% weight band; the reference indexes it with an
-always-empty slice, leaving the feature dead.
-"""
 from __future__ import annotations
 
 from typing import Dict, List, Sequence, Tuple
@@ -19,7 +12,6 @@ NUM_FEATURES = 29
 
 
 def _layer_type_index(module: nn.Module) -> int:
-    """One-hot slot (features 10-16) for the layer's type."""
     if isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
         return 10
     if isinstance(module, (nn.MaxPool2d, nn.AvgPool2d, nn.AdaptiveAvgPool2d)):
@@ -34,7 +26,6 @@ def _layer_type_index(module: nn.Module) -> int:
 
 
 class FeatureMatrix:
-    """29-dimensional per-neuron features: 17 constant, 12 activation-dependent."""
 
     def __init__(self, layers: Sequence[Tuple[str, nn.Module]], neurons: Sequence[Tuple[int, int]]):
         self.layers = list(layers)
@@ -90,7 +81,6 @@ class FeatureMatrix:
 
 
 def greedy_max_set(covereds: List[np.ndarray], n: int) -> List[int]:
-    """Greedy max set cover: repeatedly take the record adding most new coverage."""
     selected: List[int] = []
     if not covereds:
         return selected
@@ -111,7 +101,6 @@ def greedy_max_set(covereds: List[np.ndarray], n: int) -> List[int]:
 
 
 class AdaptiveStrategy:
-    """Genetic search over 29-dimensional neuron-selection strategy vectors."""
 
     def __init__(self, features: FeatureMatrix, rng: np.random.Generator,
                  bound: float = 5.0, size: int = 100, history: int = 300,
@@ -142,7 +131,6 @@ class AdaptiveStrategy:
         self.strategy_covered = np.maximum(self.strategy_covered, covered.astype(np.float32))
 
     def next(self) -> None:
-        """Finish this episode and advance to the next strategy vector."""
         self.records.append((self.vector.copy(), self.strategy_covered.copy()))
         self.strategy_covered = np.zeros(len(self.features.neurons), dtype=np.float32)
         if self.queue:
@@ -210,7 +198,6 @@ class Adapt(Baseline):
         return layers[:-1] if len(layers) > 1 else layers
 
     def _forward(self, x: torch.Tensor) -> Tuple[List[torch.Tensor], torch.Tensor]:
-        """Return per-layer channel-averaged activations and the logits."""
         acts: Dict[str, torch.Tensor] = {}
         handles = []
         for name, module in self.layers:
@@ -229,7 +216,6 @@ class Adapt(Baseline):
 
     @staticmethod
     def _coverage_vector(internals: Sequence[torch.Tensor], theta: float) -> np.ndarray:
-        """Per-layer min-max normalization, then threshold."""
         covered = []
         for a in internals:
             lo, hi = a.min(), a.max()

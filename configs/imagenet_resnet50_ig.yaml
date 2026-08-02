@@ -5,10 +5,11 @@ dataset:
   root: ./imagenet
   normalization: imagenet
   image_size: 224
+  seed_split: train
 model:
   name: resnet50
   pretrained: true
-checkpoint: results/imagenet_resnet50/best.pt
+checkpoint: null
 train:
   batch_size: 64
   lr: 0.0001

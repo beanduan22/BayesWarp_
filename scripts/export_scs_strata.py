@@ -43,6 +43,23 @@ def build_pair_grid(pairs, path: Path) -> None:
     save_image(grid, str(path))
 
 
+def spread_across_seeds(members, count):
+    groups = {}
+    for item in members:
+        groups.setdefault(item['seed_idx'], []).append(item)
+    keys = sorted(groups)
+    taken = []
+    while len(taken) < count and keys:
+        remaining = []
+        for key in keys:
+            if groups[key] and len(taken) < count:
+                taken.append(groups[key].pop(0))
+            if groups[key]:
+                remaining.append(key)
+        keys = remaining
+    return taken
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Stratify generated cases by per-case SCS and export originals with their mutants.'
@@ -97,7 +114,7 @@ def main():
     for name, lo, hi in STRATA:
         members = [s for s in scored if lo <= s['scs'] < hi]
         members.sort(key=lambda s: s['scs'], reverse=(name == 'high'))
-        take = members[: args.per_stratum]
+        take = spread_across_seeds(members, args.per_stratum)
         stratum_dir = ensure_dir(out_dir / name)
         records = []
         for rank, item in enumerate(take):

@@ -21,7 +21,7 @@ finetune:
 bayeswarp:
   saliency_method: smoothgrad
   alpha: 0.1
-  area_min: 25
+  area_min: 8
   tau_iou: 0.3
   d_max: 6
   rho: 0.6

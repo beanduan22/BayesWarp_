@@ -5,10 +5,11 @@ dataset:
   root: ./imagenet
   normalization: imagenet
   image_size: 224
+  seed_split: train
 model:
   name: vgg19
   pretrained: true
-checkpoint: results/imagenet_vgg19/best.pt
+checkpoint: null
 train:
   batch_size: 64
   lr: 0.0001
