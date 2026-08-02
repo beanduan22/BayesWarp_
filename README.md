@@ -58,6 +58,36 @@ imagenet/
 
 Download from https://image-net.org/ after registering. Arrange `val/` into class subfolders using the official devkit or the script at https://github.com/soumith/imagenetloader.torch.
 
+## Trained model weights
+
+Published as assets of a release of this repository, because the VGG16
+checkpoint exceeds the GitHub file size limit.
+
+| Asset | Model | Dataset | Size |
+|---|---|---|---|
+| `mnist_lenet4.pt` | LeNet-4 | MNIST | 0.1 MB |
+| `mnist_lenet5.pt` | LeNet-5 | MNIST | 0.2 MB |
+| `cifar10_resnet18.pt` | ResNet18 | CIFAR-10 | 42.7 MB |
+| `cifar10_vgg16.pt` | VGG16 | CIFAR-10 | 512.3 MB |
+
+Verify a download against `weights.sha256` in this repository, then move it to
+the path the config expects:
+
+```bash
+sha256sum -c weights.sha256
+mkdir -p results/cifar10_resnet18
+mv cifar10_resnet18.pt results/cifar10_resnet18/best.pt
+```
+
+The ImageNet subjects (VGG19, ResNet50, EfficientNet-B0) use the torchvision
+pretrained weights, so their configs set `checkpoint: null` and need no asset.
+
+Every checkpoint is reproducible from this repository without the assets:
+
+```bash
+python train.py --config configs/cifar10_resnet18_train.yaml
+```
+
 ## Run
 
 Train, generate failures, evaluate, then fine-tune. Swap the config name for any entry in `configs/` (MNIST / CIFAR-10 / ImageNet × LeNet-4 / LeNet-5 / VGG16 / VGG19 / ResNet18 / ResNet50 × Grad-CAM / Integrated Gradients / SmoothGrad).
