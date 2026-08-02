@@ -36,3 +36,27 @@ bayeswarp:
   m: 64
   budget: 10000
   max_target_classes: 9
+baselines:
+  adapt:
+    k: 10
+    lr: 0.1
+    trail: 3
+    delta: 0.5
+    class_weight: 0.5
+    neuron_weight: 0.5
+    theta: 0.5
+  nsgen:
+    alpha_accept: 0.81
+    alpha_frac: 0.2
+    beta_frac: 0.4
+    try_num: 50
+    topk: 1
+    pseudo_topk: 1
+  suntest:
+    b: 1000
+    K: 100
+    lam: 0.1
+    q: 0.8
+    formula: dstar
+    star: 3
+    localization_samples: 2000
