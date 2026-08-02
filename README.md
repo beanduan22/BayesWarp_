@@ -60,23 +60,25 @@ Download from https://image-net.org/ after registering. Arrange `val/` into clas
 
 ## Trained model weights
 
-Published as assets of a release of this repository, because the VGG16
-checkpoint exceeds the GitHub file size limit.
+`weights/` holds the four checkpoints. They are stored with Git LFS, so a plain
+`git clone` fetches pointer files; run `git lfs pull` to get the checkpoints
+themselves.
 
-| Asset | Model | Dataset | Size |
+| File | Model | Dataset | Size |
 |---|---|---|---|
-| `mnist_lenet4.pt` | LeNet-4 | MNIST | 0.1 MB |
-| `mnist_lenet5.pt` | LeNet-5 | MNIST | 0.2 MB |
-| `cifar10_resnet18.pt` | ResNet18 | CIFAR-10 | 42.7 MB |
-| `cifar10_vgg16.pt` | VGG16 | CIFAR-10 | 512.3 MB |
+| `weights/mnist_lenet4.pt` | LeNet-4 | MNIST | 0.1 MB |
+| `weights/mnist_lenet5.pt` | LeNet-5 | MNIST | 0.2 MB |
+| `weights/cifar10_resnet18.pt` | ResNet18 | CIFAR-10 | 42.7 MB |
+| `weights/cifar10_vgg16.pt` | VGG16 | CIFAR-10 | 512.3 MB |
 
-Verify a download against `weights.sha256` in this repository, then move it to
-the path the config expects:
+Verify them, then place each checkpoint at the path its config expects:
 
 ```bash
+git lfs pull
 sha256sum -c weights.sha256
+
 mkdir -p results/cifar10_resnet18
-mv cifar10_resnet18.pt results/cifar10_resnet18/best.pt
+cp weights/cifar10_resnet18.pt results/cifar10_resnet18/best.pt
 ```
 
 The ImageNet subjects (VGG19, ResNet50, EfficientNet-B0) use the torchvision
