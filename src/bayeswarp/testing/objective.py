@@ -11,12 +11,6 @@ def softmax_confidences(model, x: torch.Tensor) -> torch.Tensor:
 
 @torch.no_grad()
 def margin_and_prediction(model, x: torch.Tensor, og: int, tg: int) -> Tuple[float, int]:
-    """One target-model evaluation returning the margin and the top-1 class.
-
-    The margin is the signed confidence margin f_tg(x) = Conf_tg(x) - Conf_og(x).
-    The objective and the prediction-inconsistency oracle share a single forward
-    pass, so a newly constructed input costs exactly one evaluation.
-    """
     conf = softmax_confidences(model, x).squeeze(0)
     margin = float(conf[tg].item() - conf[og].item())
     pred = int(conf.argmax().item())
@@ -24,18 +18,12 @@ def margin_and_prediction(model, x: torch.Tensor, og: int, tg: int) -> Tuple[flo
 
 
 def rank_target_classes(conf: torch.Tensor, og: int) -> List[int]:
-    """Rank all classes other than og in descending confidence on the seed."""
     pairs = [(i, float(conf[i].item())) for i in range(conf.numel()) if i != og]
     pairs.sort(key=lambda z: z[1], reverse=True)
     return [i for i, _ in pairs]
 
 
 def allocate_budgets(total_budget: int, num_targets: int) -> List[int]:
-    """Split the per-seed budget across targets as evenly as possible.
-
-    Remaining evaluations are assigned following the confidence ranking, so the
-    caller must pass targets already ordered by descending seed confidence.
-    """
     if num_targets <= 0:
         return []
     base = total_budget // num_targets

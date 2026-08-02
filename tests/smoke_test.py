@@ -6,13 +6,23 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / 'src'))
 import torch
 import torch.nn as nn
 
+from bayeswarp.bo.acquisition import build_acquisition
+from bayeswarp.bo.exact_gp import ExactGPSurrogate
 from bayeswarp.bo.svgp_surrogate import SVGPSurrogate
 from bayeswarp.models.factory import build_model
-from bayeswarp.mutation.grid_mutator import GridMutator
+from bayeswarp.mutation.grid_mutator import GridMutator, PixelMutator, build_mutator
+from bayeswarp.search.cmaes import CMAES
 from bayeswarp.testing.bayeswarp import BayesWarpTester, BayesWarpConfig
 from bayeswarp.testing.objective import allocate_budgets
 from bayeswarp.metrics.failure import compute_failure_metrics
 from bayeswarp.metrics.coverage import neuron_coverage, topk_neuron_coverage, critical_neuron_coverage
+from bayeswarp.metrics.adequacy import distance_based_surprise_adequacy
+from bayeswarp.metrics.redundancy import count_distinct, pairwise_distance_quantile
+from bayeswarp.metrics.statistics import cohen_kappa, holm_adjust, wilson_interval
+
+
+UNIT_MIN = torch.zeros(3, 1, 1)
+UNIT_MAX = torch.ones(3, 1, 1)
 
 
 def base_config(**overrides) -> BayesWarpConfig:
@@ -37,11 +47,16 @@ def base_config(**overrides) -> BayesWarpConfig:
     return BayesWarpConfig(**cfg)
 
 
+def make_tester(model, device, cfg, channels=1):
+    p_min = torch.zeros(channels, 1, 1)
+    p_max = torch.ones(channels, 1, 1)
+    return BayesWarpTester(model, device, cfg, p_min, p_max)
+
+
 def test_budget_allocation():
     for total, k in [(10000, 9), (10000, 999), (10000, 7)]:
         budgets = allocate_budgets(total, k)
         assert sum(budgets) == total
-
         assert max(budgets) - min(budgets) <= 1
         assert budgets == sorted(budgets, reverse=True)
 
@@ -49,21 +64,56 @@ def test_budget_allocation():
 def test_grid_mutator_constraints():
     mask = torch.zeros(8, 8)
     mask[2:5, 2:5] = 1.0
-    mutator = GridMutator(image_shape=(3, 8, 8), region_mask=mask, n=2, r=0.1, eta=0.1)
-    x0 = torch.rand(3, 8, 8)
+    mutator = GridMutator(
+        image_shape=(3, 8, 8), region_mask=mask, p_min=UNIT_MIN, p_max=UNIT_MAX, n=2, r=0.1, eta=0.1
+    )
+    assert mutator.dim == 4
 
-    u = mutator.clip_u(torch.randn(mutator.dim) * 5.0)
-    assert float(u.abs().max()) <= 0.1 + 1e-6
+    x0 = torch.rand(3, 8, 8)
+    assert abs(mutator.u_bound - 1.2) < 1e-6
+    u = mutator.clip_u(torch.randn(mutator.dim) * 50.0)
+    assert float(u.abs().max()) <= mutator.u_bound + 1e-6
+    assert float(mutator.clip_u(torch.full((mutator.dim,), 0.5)).abs().max()) == 0.5
+
+    deltas = mutator.sample_deltas(64, torch.device('cpu'))
+    assert float(deltas.abs().max()) <= mutator.r + 1e-6
+
+    saturated = mutator.reconstruct(torch.full((mutator.dim,), mutator.u_bound), x0)
+    assert float(saturated[:, mask > 0].min()) >= 1.1 - 1e-5
 
     x = mutator.reconstruct(u, x0)
     delta = (x - x0).abs().sum(dim=0)
-    assert float(delta[mask == 0].max()) < 1e-7
+    assert float(delta[mask == 0].max()) < 1e-6
     assert torch.allclose(mutator.reconstruct(torch.zeros(mutator.dim), x0), x0)
 
-    pmin, pmax = float(x0.min()), float(x0.max())
-    span = pmax - pmin
-    assert float(x.min()) >= pmin - 0.1 * span - 1e-6
-    assert float(x.max()) <= pmax + 0.1 * span + 1e-6
+    shared = mutator.interpolate_to_region(u)
+    assert torch.allclose(shared[0], shared[1], atol=1e-6)
+    assert torch.allclose(shared[0], shared[2], atol=1e-6)
+
+    assert float(x.min()) >= -0.1 - 1e-6
+    assert float(x.max()) <= 1.1 + 1e-6
+
+
+def test_pixel_mutator():
+    mask = torch.zeros(8, 8)
+    mask[2:5, 2:5] = 1.0
+    mutator = build_mutator(
+        image_shape=(3, 8, 8),
+        region_mask=mask,
+        p_min=UNIT_MIN,
+        p_max=UNIT_MAX,
+        n=2,
+        r=0.1,
+        eta=0.1,
+        parameterization='pixel',
+    )
+    assert isinstance(mutator, PixelMutator)
+    assert mutator.dim == 9
+
+    x0 = torch.rand(3, 8, 8)
+    x = mutator.reconstruct(mutator.sample_deltas(1, torch.device('cpu'))[0], x0)
+    delta = (x - x0).abs().sum(dim=0)
+    assert float(delta[mask == 0].max()) < 1e-6
 
 
 def test_svgp_surrogate():
@@ -86,6 +136,41 @@ def test_svgp_surrogate():
     assert float((mu - target).abs().mean()) < 0.1
 
 
+def test_exact_gp_surrogate():
+    surrogate = ExactGPSurrogate(dim=1, device=torch.device('cpu'), bound=0.1)
+    xs = torch.linspace(-0.1, 0.1, 20).unsqueeze(1)
+    target = torch.sin(xs.squeeze(1) * 8)
+    for xi, yi in zip(xs, target):
+        surrogate.add_observation(xi, float(yi))
+    for _ in range(200):
+        surrogate.fit_step()
+    mu, sigma = surrogate.predict(xs)
+    assert mu.shape == (20,) and sigma.shape == (20,)
+    assert float(sigma.min()) > 0
+
+
+def test_acquisitions():
+    mu = torch.tensor([0.0, 1.0, 2.0])
+    sigma = torch.tensor([1.0, 0.5, 0.1])
+    ucb = build_acquisition('ucb')(mu, sigma, 1.0, 0.0)
+    assert torch.allclose(ucb, mu + sigma)
+    ei = build_acquisition('ei')(mu, sigma, 1.0, 1.0)
+    assert ei.shape == mu.shape
+    assert float(ei.min()) >= 0.0
+    assert float(ei[2]) > float(ei[0])
+
+
+def test_cmaes():
+    torch.manual_seed(0)
+    optimizer = CMAES(dim=3, device=torch.device('cpu'), bound=0.1, sigma0=0.05, population=8)
+    target = torch.tensor([0.05, -0.05, 0.0])
+    for _ in range(60):
+        offspring = optimizer.ask()
+        values = [float(-(candidate - target).pow(2).sum()) for candidate in offspring]
+        optimizer.tell(offspring, values)
+    assert float((optimizer.mean.float() - target).abs().max()) < 0.05
+
+
 def test_budget_is_exact_and_mutations_stay_in_region():
     torch.manual_seed(0)
     model = nn.Sequential(nn.Flatten(), nn.Linear(784, 10)).eval()
@@ -103,37 +188,59 @@ def test_budget_is_exact_and_mutations_stay_in_region():
     device = torch.device('cpu')
     x0 = torch.rand(1, 28, 28)
 
-    BayesWarpTester(model, device, base_config(budget=0)).run_on_seed(x0)
+    make_tester(model, device, base_config(budget=0)).run_on_seed(x0)
     overhead = calls['n']
 
     calls['n'] = 0
     cfg = base_config(budget=180)
-    out = BayesWarpTester(model, device, cfg).run_on_seed(x0)
+    out = make_tester(model, device, cfg).run_on_seed(x0)
     assert calls['n'] - overhead == cfg.budget
+    assert out['evaluations_used'] == cfg.budget
 
     model.forward = forward
     region = out['region_mask']
     outside = region == 0
-    pmin, pmax = float(x0.min()), float(x0.max())
-    span = pmax - pmin
     for failure in out['failures']:
         x = failure['x'].squeeze(0)
         delta = (x - x0).abs().sum(dim=0)
         if outside.any():
             assert float(delta[outside].max()) < 1e-6
-        assert float(x.min()) >= pmin - cfg.eta * span - 1e-5
-        assert float(x.max()) <= pmax + cfg.eta * span + 1e-5
+        assert float(x.min()) >= -cfg.eta - 1e-5
+        assert float(x.max()) <= 1.0 + cfg.eta + 1e-5
         assert failure['pred'] != failure['og']
+
+
+def test_search_variants_respect_budget():
+    torch.manual_seed(0)
+    model = nn.Sequential(nn.Flatten(), nn.Linear(784, 10)).eval()
+    device = torch.device('cpu')
+    x0 = torch.rand(1, 28, 28)
+
+    for overrides in [
+        {'acquisition': 'ei'},
+        {'surrogate': 'exact_gp'},
+        {'search': 'cmaes', 'cma_population': 5},
+    ]:
+        cfg = base_config(budget=24, n=2, m=8, **overrides)
+        out = make_tester(model, device, cfg).run_on_seed(x0)
+        assert out['evaluations_used'] == cfg.budget
+
+    for ablation in ('no_localization', 'no_bayesian', 'no_merging', 'no_grid', 'no_noise'):
+        cfg = base_config(budget=18, n=2, m=8, ablation=ablation)
+        out = make_tester(model, device, cfg).run_on_seed(x0)
+        assert out['evaluations_used'] == cfg.budget
 
 
 def test_pipeline_and_metrics():
     device = torch.device('cpu')
     model = build_model('lenet5', 10, pretrained=False).to(device).eval()
-    out = BayesWarpTester(model, device, base_config(budget=12, n=1, r=0.1)).run_on_seed(torch.rand(1, 28, 28))
-    metrics = compute_failure_metrics([out])
-    assert {'NoF', 'FSR', 'TPF', 'DoF'} <= set(metrics)
+    cfg = base_config(budget=12, n=1, r=0.1)
+    out = make_tester(model, device, cfg).run_on_seed(torch.rand(1, 28, 28))
+    metrics = compute_failure_metrics([out], budget=cfg.budget)
+    assert {'NoF', 'FSR', 'TPF', 'DoF', 'QFF_median', 'per_seed_dof'} <= set(metrics)
     assert metrics['NoF'] == len(out['failures'])
     assert 0.0 <= metrics['FSR'] <= 1.0
+    assert set(out['stage_time_sec']) and all(v >= 0.0 for v in out['stage_time_sec'].values())
 
     images = [torch.rand(1, 1, 28, 28), torch.rand(1, 1, 28, 28)]
     assert 0.0 <= neuron_coverage(model, images) <= 1.0
@@ -141,12 +248,36 @@ def test_pipeline_and_metrics():
     assert 0.0 <= critical_neuron_coverage(model, images) <= 1.0
 
 
+def test_analysis_metrics():
+    reference = torch.tensor([[0.0, 0.0], [1.0, 1.0], [5.0, 5.0]])
+    reference_preds = [0, 0, 1]
+    generated = torch.tensor([[0.1, 0.1]])
+    scores = distance_based_surprise_adequacy(generated, [0], reference, reference_preds)
+    assert len(scores) == 1 and scores[0] > 0
+
+    vectors = torch.cat([torch.zeros(4, 3, 4, 4), torch.ones(3, 3, 4, 4)], dim=0)
+    assert count_distinct(vectors, threshold=1e-6) == 2
+    assert pairwise_distance_quantile(vectors, 0.5) >= 0.0
+
+    adjusted = holm_adjust([0.01, 0.04, 0.03])
+    assert all(a >= b for a, b in zip(adjusted, [0.01, 0.04, 0.03]))
+    rate, low, high = wilson_interval(29, 30)
+    assert low < rate <= high
+    assert abs(cohen_kappa([1, 1, 0, 0], [1, 1, 0, 0]) - 1.0) < 1e-9
+
+
 def main():
     test_budget_allocation()
     test_grid_mutator_constraints()
+    test_pixel_mutator()
     test_svgp_surrogate()
+    test_exact_gp_surrogate()
+    test_acquisitions()
+    test_cmaes()
     test_budget_is_exact_and_mutations_stay_in_region()
+    test_search_variants_respect_budget()
     test_pipeline_and_metrics()
+    test_analysis_metrics()
     print('SMOKE_TEST_OK')
 
 
