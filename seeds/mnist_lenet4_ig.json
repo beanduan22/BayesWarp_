@@ -1,0 +1,518 @@
+{
+  "config": "configs/mnist_lenet4_ig.yaml",
+  "dataset": "mnist",
+  "split": "train",
+  "model": "lenet4",
+  "selection_seed": 123,
+  "search_seeds": [
+    123,
+    124,
+    125,
+    126,
+    127
+  ],
+  "skip": 0,
+  "num_seeds": 100,
+  "seeds": [
+    {
+      "position": 0,
+      "dataset_index": 12382,
+      "label": 1
+    },
+    {
+      "position": 1,
+      "dataset_index": 10826,
+      "label": 3
+    },
+    {
+      "position": 2,
+      "dataset_index": 20070,
+      "label": 1
+    },
+    {
+      "position": 3,
+      "dataset_index": 40629,
+      "label": 8
+    },
+    {
+      "position": 4,
+      "dataset_index": 44540,
+      "label": 3
+    },
+    {
+      "position": 5,
+      "dataset_index": 35142,
+      "label": 4
+    },
+    {
+      "position": 6,
+      "dataset_index": 35700,
+      "label": 0
+    },
+    {
+      "position": 7,
+      "dataset_index": 47452,
+      "label": 0
+    },
+    {
+      "position": 8,
+      "dataset_index": 27771,
+      "label": 9
+    },
+    {
+      "position": 9,
+      "dataset_index": 56203,
+      "label": 5
+    },
+    {
+      "position": 10,
+      "dataset_index": 11341,
+      "label": 3
+    },
+    {
+      "position": 11,
+      "dataset_index": 48038,
+      "label": 3
+    },
+    {
+      "position": 12,
+      "dataset_index": 52806,
+      "label": 6
+    },
+    {
+      "position": 13,
+      "dataset_index": 29207,
+      "label": 4
+    },
+    {
+      "position": 14,
+      "dataset_index": 27788,
+      "label": 0
+    },
+    {
+      "position": 15,
+      "dataset_index": 30654,
+      "label": 8
+    },
+    {
+      "position": 16,
+      "dataset_index": 37790,
+      "label": 0
+    },
+    {
+      "position": 17,
+      "dataset_index": 54308,
+      "label": 8
+    },
+    {
+      "position": 18,
+      "dataset_index": 17317,
+      "label": 9
+    },
+    {
+      "position": 19,
+      "dataset_index": 2884,
+      "label": 6
+    },
+    {
+      "position": 20,
+      "dataset_index": 49830,
+      "label": 8
+    },
+    {
+      "position": 21,
+      "dataset_index": 49357,
+      "label": 1
+    },
+    {
+      "position": 22,
+      "dataset_index": 33209,
+      "label": 6
+    },
+    {
+      "position": 23,
+      "dataset_index": 31396,
+      "label": 7
+    },
+    {
+      "position": 24,
+      "dataset_index": 47227,
+      "label": 9
+    },
+    {
+      "position": 25,
+      "dataset_index": 51302,
+      "label": 8
+    },
+    {
+      "position": 26,
+      "dataset_index": 45745,
+      "label": 2
+    },
+    {
+      "position": 27,
+      "dataset_index": 54141,
+      "label": 0
+    },
+    {
+      "position": 28,
+      "dataset_index": 25236,
+      "label": 8
+    },
+    {
+      "position": 29,
+      "dataset_index": 44862,
+      "label": 0
+    },
+    {
+      "position": 30,
+      "dataset_index": 11766,
+      "label": 7
+    },
+    {
+      "position": 31,
+      "dataset_index": 48784,
+      "label": 2
+    },
+    {
+      "position": 32,
+      "dataset_index": 14295,
+      "label": 2
+    },
+    {
+      "position": 33,
+      "dataset_index": 10768,
+      "label": 4
+    },
+    {
+      "position": 34,
+      "dataset_index": 26832,
+      "label": 0
+    },
+    {
+      "position": 35,
+      "dataset_index": 52411,
+      "label": 1
+    },
+    {
+      "position": 36,
+      "dataset_index": 46379,
+      "label": 3
+    },
+    {
+      "position": 37,
+      "dataset_index": 2669,
+      "label": 3
+    },
+    {
+      "position": 38,
+      "dataset_index": 49672,
+      "label": 5
+    },
+    {
+      "position": 39,
+      "dataset_index": 34967,
+      "label": 3
+    },
+    {
+      "position": 40,
+      "dataset_index": 29104,
+      "label": 3
+    },
+    {
+      "position": 41,
+      "dataset_index": 32072,
+      "label": 8
+    },
+    {
+      "position": 42,
+      "dataset_index": 17392,
+      "label": 0
+    },
+    {
+      "position": 43,
+      "dataset_index": 3800,
+      "label": 1
+    },
+    {
+      "position": 44,
+      "dataset_index": 35381,
+      "label": 3
+    },
+    {
+      "position": 45,
+      "dataset_index": 15256,
+      "label": 7
+    },
+    {
+      "position": 46,
+      "dataset_index": 19570,
+      "label": 8
+    },
+    {
+      "position": 47,
+      "dataset_index": 18528,
+      "label": 3
+    },
+    {
+      "position": 48,
+      "dataset_index": 54996,
+      "label": 3
+    },
+    {
+      "position": 49,
+      "dataset_index": 27688,
+      "label": 9
+    },
+    {
+      "position": 50,
+      "dataset_index": 34853,
+      "label": 3
+    },
+    {
+      "position": 51,
+      "dataset_index": 38870,
+      "label": 8
+    },
+    {
+      "position": 52,
+      "dataset_index": 18346,
+      "label": 7
+    },
+    {
+      "position": 53,
+      "dataset_index": 24372,
+      "label": 7
+    },
+    {
+      "position": 54,
+      "dataset_index": 26301,
+      "label": 6
+    },
+    {
+      "position": 55,
+      "dataset_index": 29287,
+      "label": 2
+    },
+    {
+      "position": 56,
+      "dataset_index": 30713,
+      "label": 7
+    },
+    {
+      "position": 57,
+      "dataset_index": 42523,
+      "label": 6
+    },
+    {
+      "position": 58,
+      "dataset_index": 44038,
+      "label": 1
+    },
+    {
+      "position": 59,
+      "dataset_index": 5888,
+      "label": 0
+    },
+    {
+      "position": 60,
+      "dataset_index": 43690,
+      "label": 8
+    },
+    {
+      "position": 61,
+      "dataset_index": 44942,
+      "label": 4
+    },
+    {
+      "position": 62,
+      "dataset_index": 39188,
+      "label": 6
+    },
+    {
+      "position": 63,
+      "dataset_index": 7957,
+      "label": 6
+    },
+    {
+      "position": 64,
+      "dataset_index": 17538,
+      "label": 1
+    },
+    {
+      "position": 65,
+      "dataset_index": 12905,
+      "label": 6
+    },
+    {
+      "position": 66,
+      "dataset_index": 16368,
+      "label": 1
+    },
+    {
+      "position": 67,
+      "dataset_index": 58012,
+      "label": 0
+    },
+    {
+      "position": 68,
+      "dataset_index": 42337,
+      "label": 5
+    },
+    {
+      "position": 69,
+      "dataset_index": 25147,
+      "label": 2
+    },
+    {
+      "position": 70,
+      "dataset_index": 38246,
+      "label": 7
+    },
+    {
+      "position": 71,
+      "dataset_index": 32104,
+      "label": 7
+    },
+    {
+      "position": 72,
+      "dataset_index": 5011,
+      "label": 3
+    },
+    {
+      "position": 73,
+      "dataset_index": 37935,
+      "label": 9
+    },
+    {
+      "position": 74,
+      "dataset_index": 15539,
+      "label": 1
+    },
+    {
+      "position": 75,
+      "dataset_index": 51586,
+      "label": 7
+    },
+    {
+      "position": 76,
+      "dataset_index": 19486,
+      "label": 1
+    },
+    {
+      "position": 77,
+      "dataset_index": 31401,
+      "label": 2
+    },
+    {
+      "position": 78,
+      "dataset_index": 37762,
+      "label": 7
+    },
+    {
+      "position": 79,
+      "dataset_index": 25071,
+      "label": 3
+    },
+    {
+      "position": 80,
+      "dataset_index": 55443,
+      "label": 2
+    },
+    {
+      "position": 81,
+      "dataset_index": 51603,
+      "label": 1
+    },
+    {
+      "position": 82,
+      "dataset_index": 36848,
+      "label": 0
+    },
+    {
+      "position": 83,
+      "dataset_index": 20110,
+      "label": 4
+    },
+    {
+      "position": 84,
+      "dataset_index": 1346,
+      "label": 0
+    },
+    {
+      "position": 85,
+      "dataset_index": 15241,
+      "label": 1
+    },
+    {
+      "position": 86,
+      "dataset_index": 2480,
+      "label": 6
+    },
+    {
+      "position": 87,
+      "dataset_index": 53194,
+      "label": 1
+    },
+    {
+      "position": 88,
+      "dataset_index": 54635,
+      "label": 3
+    },
+    {
+      "position": 89,
+      "dataset_index": 19740,
+      "label": 7
+    },
+    {
+      "position": 90,
+      "dataset_index": 13647,
+      "label": 3
+    },
+    {
+      "position": 91,
+      "dataset_index": 16983,
+      "label": 1
+    },
+    {
+      "position": 92,
+      "dataset_index": 2415,
+      "label": 1
+    },
+    {
+      "position": 93,
+      "dataset_index": 44750,
+      "label": 0
+    },
+    {
+      "position": 94,
+      "dataset_index": 49085,
+      "label": 0
+    },
+    {
+      "position": 95,
+      "dataset_index": 28641,
+      "label": 7
+    },
+    {
+      "position": 96,
+      "dataset_index": 47225,
+      "label": 3
+    },
+    {
+      "position": 97,
+      "dataset_index": 20589,
+      "label": 1
+    },
+    {
+      "position": 98,
+      "dataset_index": 28550,
+      "label": 7
+    },
+    {
+      "position": 99,
+      "dataset_index": 27413,
+      "label": 2
+    }
+  ]
+}

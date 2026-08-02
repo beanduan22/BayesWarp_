@@ -1,0 +1,268 @@
+{
+  "config": "configs/cifar10_resnet18_smoothgrad.yaml",
+  "dataset": "cifar10",
+  "split": "train",
+  "model": "resnet18",
+  "selection_seed": 123,
+  "search_seeds": [
+    123,
+    124,
+    125,
+    126,
+    127
+  ],
+  "skip": 100,
+  "num_seeds": 50,
+  "seeds": [
+    {
+      "position": 0,
+      "dataset_index": 46540,
+      "label": 8
+    },
+    {
+      "position": 1,
+      "dataset_index": 11762,
+      "label": 0
+    },
+    {
+      "position": 2,
+      "dataset_index": 40023,
+      "label": 4
+    },
+    {
+      "position": 3,
+      "dataset_index": 22265,
+      "label": 1
+    },
+    {
+      "position": 4,
+      "dataset_index": 5139,
+      "label": 7
+    },
+    {
+      "position": 5,
+      "dataset_index": 22886,
+      "label": 4
+    },
+    {
+      "position": 6,
+      "dataset_index": 9450,
+      "label": 5
+    },
+    {
+      "position": 7,
+      "dataset_index": 46221,
+      "label": 9
+    },
+    {
+      "position": 8,
+      "dataset_index": 49064,
+      "label": 9
+    },
+    {
+      "position": 9,
+      "dataset_index": 18876,
+      "label": 4
+    },
+    {
+      "position": 10,
+      "dataset_index": 14351,
+      "label": 1
+    },
+    {
+      "position": 11,
+      "dataset_index": 17889,
+      "label": 5
+    },
+    {
+      "position": 12,
+      "dataset_index": 6485,
+      "label": 4
+    },
+    {
+      "position": 13,
+      "dataset_index": 1495,
+      "label": 7
+    },
+    {
+      "position": 14,
+      "dataset_index": 20508,
+      "label": 8
+    },
+    {
+      "position": 15,
+      "dataset_index": 2239,
+      "label": 6
+    },
+    {
+      "position": 16,
+      "dataset_index": 6564,
+      "label": 7
+    },
+    {
+      "position": 17,
+      "dataset_index": 33239,
+      "label": 4
+    },
+    {
+      "position": 18,
+      "dataset_index": 47383,
+      "label": 7
+    },
+    {
+      "position": 19,
+      "dataset_index": 46649,
+      "label": 1
+    },
+    {
+      "position": 20,
+      "dataset_index": 4768,
+      "label": 9
+    },
+    {
+      "position": 21,
+      "dataset_index": 33817,
+      "label": 8
+    },
+    {
+      "position": 22,
+      "dataset_index": 30219,
+      "label": 3
+    },
+    {
+      "position": 23,
+      "dataset_index": 12911,
+      "label": 0
+    },
+    {
+      "position": 24,
+      "dataset_index": 13635,
+      "label": 6
+    },
+    {
+      "position": 25,
+      "dataset_index": 38268,
+      "label": 6
+    },
+    {
+      "position": 26,
+      "dataset_index": 46302,
+      "label": 9
+    },
+    {
+      "position": 27,
+      "dataset_index": 18726,
+      "label": 8
+    },
+    {
+      "position": 28,
+      "dataset_index": 18265,
+      "label": 6
+    },
+    {
+      "position": 29,
+      "dataset_index": 1347,
+      "label": 4
+    },
+    {
+      "position": 30,
+      "dataset_index": 24211,
+      "label": 9
+    },
+    {
+      "position": 31,
+      "dataset_index": 24974,
+      "label": 7
+    },
+    {
+      "position": 32,
+      "dataset_index": 42185,
+      "label": 2
+    },
+    {
+      "position": 33,
+      "dataset_index": 1521,
+      "label": 5
+    },
+    {
+      "position": 34,
+      "dataset_index": 35393,
+      "label": 9
+    },
+    {
+      "position": 35,
+      "dataset_index": 6540,
+      "label": 3
+    },
+    {
+      "position": 36,
+      "dataset_index": 5249,
+      "label": 0
+    },
+    {
+      "position": 37,
+      "dataset_index": 38711,
+      "label": 0
+    },
+    {
+      "position": 38,
+      "dataset_index": 5446,
+      "label": 8
+    },
+    {
+      "position": 39,
+      "dataset_index": 36429,
+      "label": 7
+    },
+    {
+      "position": 40,
+      "dataset_index": 25787,
+      "label": 0
+    },
+    {
+      "position": 41,
+      "dataset_index": 29546,
+      "label": 1
+    },
+    {
+      "position": 42,
+      "dataset_index": 46266,
+      "label": 7
+    },
+    {
+      "position": 43,
+      "dataset_index": 44979,
+      "label": 5
+    },
+    {
+      "position": 44,
+      "dataset_index": 49420,
+      "label": 0
+    },
+    {
+      "position": 45,
+      "dataset_index": 48729,
+      "label": 0
+    },
+    {
+      "position": 46,
+      "dataset_index": 34856,
+      "label": 0
+    },
+    {
+      "position": 47,
+      "dataset_index": 30135,
+      "label": 1
+    },
+    {
+      "position": 48,
+      "dataset_index": 27710,
+      "label": 0
+    },
+    {
+      "position": 49,
+      "dataset_index": 47738,
+      "label": 4
+    }
+  ]
+}

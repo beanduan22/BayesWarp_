@@ -6,29 +6,6 @@ import torch
 
 
 class SVGPSurrogate:
-    """Sparse Variational Gaussian Process surrogate over grid mutation parameters.
-
-    Implements the standard SVGP formulation (Titsias, 2009; Hensman et al.,
-    2013) with a variational distribution over the inducing variables, giving
-
-        mu(u)      = k(u,Z)^T K_ZZ^-1 m
-        sigma^2(u) = k(u,u) + k(u,Z)^T K_ZZ^-1 (S - K_ZZ) K_ZZ^-1 k(Z,u)
-
-    The variational parameters and kernel hyperparameters are fitted by
-    maximizing the ELBO with Adam, one step per search step.
-
-    Internally the model is whitened: with K_ZZ = L L^T we parameterize
-    v_w = L^-1 v, so that p(v_w) = N(0, I) and q(v_w) = N(m_w, S_w). This is a
-    reparameterization of the same model -- it corresponds exactly to
-    m = L m_w and S = L S_w L^T in the equations above, and leaves the
-    predictive distribution unchanged -- but it avoids forming K_ZZ^-1
-    explicitly, which is badly conditioned when inducing points are close
-    relative to the kernel lengthscale.
-
-    The number of active inducing points is m_act = min(m, |D|), so it never
-    exceeds the observations available in the current target-specific search.
-    """
-
     def __init__(
         self,
         dim: int,
@@ -89,7 +66,6 @@ class SVGPSurrogate:
         return self.Z[:M], self.q_mean[:M], self.q_sqrt[:M, :M].tril()
 
     def _posterior(self, X: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Variational predictive mean and variance at X."""
         Z, q_mean, q_sqrt = self._active()
         M = Z.size(0)
 
@@ -110,7 +86,6 @@ class SVGPSurrogate:
         return mean, var.clamp_min(1e-10)
 
     def _kl_divergence(self) -> torch.Tensor:
-        """KL(q(v_w) || N(0, I)) under the whitened parameterization."""
         _, q_mean, q_sqrt = self._active()
         M = q_mean.size(0)
         diag = torch.diagonal(q_sqrt).abs() + 1e-12
@@ -126,7 +101,6 @@ class SVGPSurrogate:
         self.y = y_t if self.y is None else torch.cat([self.y, y_t], dim=0)
 
     def fit_step(self) -> Optional[float]:
-        """Take one Adam step on the ELBO. Called once per search step."""
         if self.X is None or self.X.size(0) == 0:
             return None
 
@@ -149,7 +123,6 @@ class SVGPSurrogate:
 
     @torch.no_grad()
     def predict(self, U: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Predictive mean and standard deviation for candidate parameters."""
         if self.X is None or self.X.size(0) == 0:
             n = U.size(0)
             return torch.zeros(n, device=self.device), torch.ones(n, device=self.device)

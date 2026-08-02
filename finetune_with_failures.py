@@ -28,7 +28,7 @@ from bayeswarp.utils.seed import set_seed
 from bayeswarp.utils.io import ensure_dir, save_json
 from bayeswarp.utils.device import get_device
 from bayeswarp.data.datasets import build_datasets, build_loaders, dataset_meta
-from bayeswarp.models.factory import build_model
+from bayeswarp.models.factory import build_model, load_checkpoint
 
 
 def evaluate(model, loader, device):
@@ -44,8 +44,6 @@ def evaluate(model, loader, device):
 
 
 def balanced_failure_subset(failure_bank, num_failures: int):
-    """Distribute the selection as evenly as possible across source seeds and
-    predicted classes."""
     groups = defaultdict(list)
     for item in failure_bank:
         groups[(item['seed_idx'], item['pred'])].append(item)
@@ -90,8 +88,7 @@ def main():
     )
     meta = dataset_meta(cfg['dataset']['name'])
     model = build_model(cfg['model']['name'], meta['num_classes'], pretrained=cfg['model'].get('pretrained', True)).to(device)
-    ckpt = torch.load(cfg['checkpoint'], map_location=device)
-    model.load_state_dict(ckpt['model'])
+    load_checkpoint(model, cfg.get('checkpoint'), device, pretrained=cfg['model'].get('pretrained', True))
 
     before_acc = evaluate(model, test_loader, device)
     pack = torch.load(args.failures, map_location='cpu')
