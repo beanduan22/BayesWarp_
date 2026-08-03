@@ -10,7 +10,10 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / 'src'))
 
 import torch
 
+from bayeswarp.utils.config import load_config
 from bayeswarp.utils.io import ensure_dir
+from bayeswarp.data.datasets import pixel_range
+from bayeswarp.metrics.quality import to_unit_range
 
 STRATA_FIXED = (('high', 0.8, 1.01), ('mid', 0.6, 0.8), ('low', -1.01, 0.6))
 DATASETS = ('mnist', 'cifar10', 'imagenet')
@@ -49,14 +52,13 @@ def pick_two(members: list[dict]) -> list[dict]:
     return reps[:PER_STRATUM], med, len(by_seed)
 
 
-def to_image(x: torch.Tensor) -> torch.Tensor:
-    if x.ndim == 4:
-        x = x.squeeze(0)
-    x = x.detach().float()
-    lo, hi = float(x.min()), float(x.max())
-    if hi - lo > 1e-8:
-        x = (x - lo) / (hi - lo)
-    return x.clamp(0, 1)
+def to_image(x: torch.Tensor, p_min: torch.Tensor, p_max: torch.Tensor) -> torch.Tensor:
+    return to_unit_range(x.detach().float(), p_min, p_max).squeeze(0)
+
+
+def range_for_model(model_dir: str):
+    cfg = load_config(str(Path('configs') / f'{model_dir}.yaml'))
+    return pixel_range(cfg['dataset']['name'], cfg['dataset'].get('normalization', 'none'))
 
 
 def main() -> None:
@@ -140,7 +142,9 @@ def main() -> None:
             d = ensure_dir(out_root / dataset / stratum)
             stem = (f"{dataset}_{stratum}_scs{p['scs']:.3f}_seed{p['seed_idx']}"
                     f"_{p['og']}to{p['pred']}_{p['model']}_{p['method']}")
-            seed_x, gen_x = to_image(it['seed_x']), to_image(it['x'])
+            p_min, p_max = range_for_model(p['model'])
+            seed_x = to_image(it['seed_x'], p_min, p_max)
+            gen_x = to_image(it['x'], p_min, p_max)
             if seed_x.ndim == 3 and seed_x.size(0) == 1:
                 seed_x, gen_x = seed_x.repeat(3, 1, 1), gen_x.repeat(3, 1, 1)
             save_image(seed_x, str(d / f'{stem}_original.png'))

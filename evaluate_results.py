@@ -13,7 +13,7 @@ from bayeswarp.utils.config import load_config
 from bayeswarp.utils.seed import set_seed
 from bayeswarp.utils.io import ensure_dir, save_json
 from bayeswarp.utils.device import get_device
-from bayeswarp.data.datasets import dataset_meta
+from bayeswarp.data.datasets import dataset_meta, pixel_range
 from bayeswarp.models.factory import build_model, load_checkpoint
 from bayeswarp.metrics.quality import SCSComputer, compute_fid
 from bayeswarp.metrics.coverage import neuron_coverage, topk_neuron_coverage, critical_neuron_coverage
@@ -73,17 +73,18 @@ def main():
 
     real_images = [as_batch(item['seed_x']) for item in sample]
     fake_images = [as_batch(item['x']) for item in sample]
+    p_min, p_max = pixel_range(cfg['dataset']['name'], cfg['dataset'].get('normalization', 'none'))
 
     metrics = dict(pack.get('metrics', {}))
     metrics['label'] = args.label
 
     try:
-        metrics['FID'] = compute_fid(real_images, fake_images, device)
+        metrics['FID'] = compute_fid(real_images, fake_images, device, p_min, p_max)
     except Exception as e:
         metrics['FID'] = f'Unavailable: {e}'
 
     try:
-        scs = SCSComputer(device)
+        scs = SCSComputer(device, p_min, p_max)
         scores = [
             scs.score(real, fake)
             for real, fake in tqdm(list(zip(real_images, fake_images)), desc='SCS')
@@ -100,9 +101,10 @@ def main():
         metrics['SCS'] = f'Unavailable: {e}'
 
     cov_images = [x.to(device) for x in fake_images[: args.coverage_samples]]
+    cov_seeds = [x.to(device) for x in real_images[: args.coverage_samples]]
     metrics['NC'] = neuron_coverage(model, cov_images)
     metrics['TKNC'] = topk_neuron_coverage(model, cov_images, k=default_topk(cfg['dataset']['name']))
-    metrics['CNC'] = critical_neuron_coverage(model, cov_images)
+    metrics['CNC'] = critical_neuron_coverage(model, cov_images, cov_seeds)
 
     out_dir = ensure_dir(cfg['output_dir'])
     save_json(metrics, out_dir / f'evaluation_{args.label}.json')

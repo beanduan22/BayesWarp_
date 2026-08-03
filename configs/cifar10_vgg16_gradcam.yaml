@@ -21,7 +21,7 @@ finetune:
 bayeswarp:
   saliency_method: gradcam
   alpha: 0.1
-  area_min: 2
+  area_min: 50
   tau_iou: 0.3
   d_max: 6
   rho: 0.6

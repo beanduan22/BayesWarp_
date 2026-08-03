@@ -57,7 +57,7 @@ for c in $CFGS; do
     f="results/$c/failures_$m.pt"
     [ -f "$f" ] || { step "skip export $c/$m (no $f)"; continue; }
     run "export_${c}_${m}" "figures/$c/$m/scs_strata.json" \
-      python scripts/export_scs_strata.py --failures "$f" --out "figures/$c/$m"
+      python scripts/export_scs_strata.py --config "configs/$c.yaml" --failures "$f" --out "figures/$c/$m"
   done
 done
 

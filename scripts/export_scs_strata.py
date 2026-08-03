@@ -7,21 +7,17 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / 'src'))
 
 import torch
 
+from bayeswarp.utils.config import load_config
 from bayeswarp.utils.device import get_device
 from bayeswarp.utils.io import ensure_dir
-from bayeswarp.metrics.quality import SCSComputer
+from bayeswarp.data.datasets import pixel_range
+from bayeswarp.metrics.quality import SCSComputer, to_unit_range
 
 STRATA = (('high', 0.8, 1.01), ('mid', 0.6, 0.8), ('low', -1.01, 0.6))
 
 
-def to_image(x: torch.Tensor) -> torch.Tensor:
-    if x.ndim == 4:
-        x = x.squeeze(0)
-    x = x.detach().float()
-    lo, hi = float(x.min()), float(x.max())
-    if hi - lo > 1e-8:
-        x = (x - lo) / (hi - lo)
-    return x.clamp(0, 1)
+def to_image(x: torch.Tensor, p_min: torch.Tensor, p_max: torch.Tensor) -> torch.Tensor:
+    return to_unit_range(x.detach().float(), p_min, p_max).squeeze(0)
 
 
 def save_png(tensor: torch.Tensor, path: Path) -> None:
@@ -29,13 +25,13 @@ def save_png(tensor: torch.Tensor, path: Path) -> None:
     save_image(tensor, str(path))
 
 
-def build_pair_grid(pairs, path: Path) -> None:
+def build_pair_grid(pairs, path: Path, p_min: torch.Tensor, p_max: torch.Tensor) -> None:
     from torchvision.utils import make_grid, save_image
     if not pairs:
         return
     tiles = []
     for seed, gen in pairs:
-        seed, gen = to_image(seed), to_image(gen)
+        seed, gen = to_image(seed, p_min, p_max), to_image(gen, p_min, p_max)
         if seed.size(0) == 1:
             seed, gen = seed.repeat(3, 1, 1), gen.repeat(3, 1, 1)
         tiles.extend([seed, gen])
@@ -64,6 +60,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Stratify generated cases by per-case SCS and export originals with their mutants.'
     )
+    parser.add_argument('--config', required=True)
     parser.add_argument('--failures', required=True)
     parser.add_argument('--out', required=True)
     parser.add_argument('--per_stratum', type=int, default=6)
@@ -71,6 +68,8 @@ def main():
     parser.add_argument('--seed', type=int, default=0)
     args = parser.parse_args()
 
+    cfg = load_config(args.config)
+    p_min, p_max = pixel_range(cfg['dataset']['name'], cfg['dataset'].get('normalization', 'none'))
     device = get_device()
     pack = torch.load(args.failures, map_location='cpu')
     bank = pack['failure_bank']
@@ -89,7 +88,7 @@ def main():
         idx = torch.randperm(len(bank), generator=generator)[: args.max_cases].tolist()
         bank = [bank[i] for i in idx]
 
-    scs = SCSComputer(device)
+    scs = SCSComputer(device, p_min, p_max)
     scored = []
     for item in bank:
         seed_x = item['seed_x']
@@ -119,12 +118,12 @@ def main():
         records = []
         for rank, item in enumerate(take):
             stem = f"{rank:02d}_seed{item['seed_idx']}_{item['og']}to{item['pred']}_scs{item['scs']:.3f}"
-            save_png(to_image(item['seed_x']), stratum_dir / f'{stem}_original.png')
-            save_png(to_image(item['x']), stratum_dir / f'{stem}_generated.png')
+            save_png(to_image(item['seed_x'], p_min, p_max), stratum_dir / f'{stem}_original.png')
+            save_png(to_image(item['x'], p_min, p_max), stratum_dir / f'{stem}_generated.png')
             records.append({'file_stem': stem, 'scs': round(item['scs'], 4),
                             'seed_idx': item['seed_idx'], 'seed_label': item['seed_y'],
                             'original_pred': item['og'], 'generated_pred': item['pred']})
-        build_pair_grid([(i['seed_x'], i['x']) for i in take], out_dir / f'{name}_pairs.png')
+        build_pair_grid([(i['seed_x'], i['x']) for i in take], out_dir / f'{name}_pairs.png', p_min, p_max)
         summary['strata'][name] = {
             'range': [lo if lo > -1 else None, hi if hi < 1.01 else None],
             'count': len(members),

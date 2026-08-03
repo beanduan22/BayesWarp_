@@ -13,6 +13,7 @@ from bayeswarp.utils.config import load_config
 from bayeswarp.utils.device import get_device
 from bayeswarp.utils.io import ensure_dir, save_json
 from bayeswarp.metrics.quality import compute_fid, compute_scs
+from bayeswarp.data.datasets import pixel_range
 
 
 SWEEPS = {
@@ -31,17 +32,17 @@ def subsample(failure_bank, count: int, seed: int):
     return rng.sample(list(failure_bank), count)
 
 
-def quality(failure_bank, device, count: int, seed: int):
+def quality(failure_bank, device, count: int, seed: int, p_min, p_max):
     sample = subsample(failure_bank, count, seed)
     real = [item['seed_x'].unsqueeze(0) if item['seed_x'].ndim == 3 else item['seed_x'] for item in sample]
     fake = [item['x'] for item in sample]
     pairs = list(zip(real, fake))
     try:
-        fid = compute_fid(real, fake, device)
+        fid = compute_fid(real, fake, device, p_min, p_max)
     except Exception as e:
         fid = f'Unavailable: {e}'
     try:
-        scs = compute_scs(pairs, device)
+        scs = compute_scs(pairs, device, p_min, p_max)
     except Exception as e:
         scs = f'Unavailable: {e}'
     return fid, scs
@@ -59,6 +60,9 @@ def main():
     base_cfg = load_config(args.config)
     device = get_device()
     out_dir = ensure_dir(base_cfg['output_dir'])
+    p_min, p_max = pixel_range(
+        base_cfg['dataset']['name'], base_cfg['dataset'].get('normalization', 'none')
+    )
 
     results = []
     for value in SWEEPS[args.parameter]:
@@ -71,7 +75,7 @@ def main():
             num_seeds=args.num_seeds,
             progress=f'{args.parameter}={value}',
         )
-        fid, scs = quality(failure_bank, device, args.quality_samples, cfg['seed'] + args.run)
+        fid, scs = quality(failure_bank, device, args.quality_samples, cfg['seed'] + args.run, p_min, p_max)
         results.append({
             'parameter': args.parameter,
             'value': value,

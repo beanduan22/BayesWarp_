@@ -28,7 +28,7 @@ class RegionMutator:
         span = hi - lo
         self.lo = lo - self.eta * span
         self.hi = hi + self.eta * span
-        self.u_bound = float((self.hi - self.lo).max())
+        self.u_bound = float(r)
 
     @property
     def dim(self) -> int:

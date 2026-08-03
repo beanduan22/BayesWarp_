@@ -112,18 +112,28 @@ for base in $MNIST_CONFIGS $CIFAR_CONFIGS $IMAGENET_CONFIGS; do
     --failures "results/${base}_smoothgrad/failures_main_run0.pt"
 done
 
-for entry in "mnist_lenet5 main" "cifar10_resnet18 main" "imagenet_resnet50 main"; do
+for entry in "mnist_lenet5 adapt suntest" "cifar10_resnet18 suntest nsgen" "imagenet_resnet50 adapt nsgen"; do
   set -- $entry
   base="$1"
+  shift
   for run in $RUNS; do
     python scripts/compute_dsa.py \
       --config "configs/${base}_smoothgrad.yaml" \
       --failures "results/${base}_smoothgrad/failures_main_run${run}.pt" \
       --label bayeswarp --run "$run"
+    for baseline in "$@"; do
+      python scripts/compute_dsa.py \
+        --config "configs/${base}_smoothgrad.yaml" \
+        --failures "results/${base}_smoothgrad/failures_${baseline}_run${run}.pt" \
+        --label "$baseline" --run "$run"
+    done
   done
 done
 
-for base in mnist_lenet4 cifar10_resnet18 imagenet_resnet50; do
+for entry in "mnist_lenet4 adapt" "cifar10_resnet18 nsgen" "imagenet_resnet50 nsgen"; do
+  set -- $entry
+  base="$1"
+  baseline="$2"
   python run_bayeswarp.py --config "configs/${base}_smoothgrad.yaml" \
     --skip 100 --num-seeds 50 --suffix calibration --run 0
   python scripts/compute_redundancy.py \
@@ -131,6 +141,11 @@ for base in mnist_lenet4 cifar10_resnet18 imagenet_resnet50; do
     --failures "results/${base}_smoothgrad/failures_main_run0.pt" \
     --calibration-failures "results/${base}_smoothgrad/failures_calibration_run0.pt" \
     --label bayeswarp
+  python scripts/compute_redundancy.py \
+    --config "configs/${base}_smoothgrad.yaml" \
+    --failures "results/${base}_smoothgrad/failures_${baseline}_run0.pt" \
+    --calibration-failures "results/${base}_smoothgrad/failures_calibration_run0.pt" \
+    --label "$baseline"
 done
 
 for parameter in alpha rho S m n; do

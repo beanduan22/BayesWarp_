@@ -38,8 +38,8 @@ def build_model(name: str, num_classes: int, pretrained: bool = True) -> nn.Modu
         model.classifier[-1] = _fit_head(model.classifier[-1], num_classes)
         return model
     if name == 'vgg19':
-        weights = models.VGG19_Weights.IMAGENET1K_V1 if pretrained else None
-        model = models.vgg19(weights=weights)
+        weights = models.VGG19_BN_Weights.IMAGENET1K_V1 if pretrained else None
+        model = models.vgg19_bn(weights=weights)
         model.classifier[-1] = _fit_head(model.classifier[-1], num_classes)
         return model
     if name == 'resnet18':
@@ -48,7 +48,7 @@ def build_model(name: str, num_classes: int, pretrained: bool = True) -> nn.Modu
         model.fc = _fit_head(model.fc, num_classes)
         return model
     if name == 'resnet50':
-        weights = models.ResNet50_Weights.IMAGENET1K_V2 if pretrained else None
+        weights = models.ResNet50_Weights.IMAGENET1K_V1 if pretrained else None
         model = models.resnet50(weights=weights)
         model.fc = _fit_head(model.fc, num_classes)
         return model

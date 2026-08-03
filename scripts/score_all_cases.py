@@ -10,8 +10,11 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / 'src'))
 import torch
 import torch.nn.functional as F
 
+from bayeswarp.utils.config import load_config
 from bayeswarp.utils.device import get_device
 from bayeswarp.utils.io import ensure_dir
+from bayeswarp.data.datasets import pixel_range
+from bayeswarp.metrics.quality import to_unit_range
 
 DATASETS = {
     'mnist': ['results/mnist_lenet4_smoothgrad', 'results/mnist_lenet5_smoothgrad'],
@@ -21,11 +24,16 @@ DATASETS = {
 METHODS = ('adapt', 'nsgen', 'suntest')
 
 
-def to_clip_input(x: torch.Tensor) -> torch.Tensor:
+def to_clip_input(x: torch.Tensor, p_min: torch.Tensor, p_max: torch.Tensor) -> torch.Tensor:
+    x = to_unit_range(x, p_min, p_max)
     if x.size(1) == 1:
         x = x.repeat(1, 3, 1, 1)
-    x = x.clamp(0, 1)
     return F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
+
+
+def range_for_dir(results_dir: str):
+    cfg = load_config(str(Path('configs') / f'{Path(results_dir).name}.yaml'))
+    return pixel_range(cfg['dataset']['name'], cfg['dataset'].get('normalization', 'none'))
 
 
 def as_4d(x: torch.Tensor) -> torch.Tensor:
@@ -37,14 +45,14 @@ def as_4d(x: torch.Tensor) -> torch.Tensor:
 
 
 @torch.no_grad()
-def score_bank(bank, model, device, batch_size: int):
+def score_bank(bank, model, device, batch_size: int, p_min, p_max):
     scores = []
     for start in range(0, len(bank), batch_size):
         chunk = bank[start:start + batch_size]
         seeds = torch.cat([as_4d(it['seed_x'].float()) for it in chunk], dim=0)
         gens = torch.cat([as_4d(it['x'].float()) for it in chunk], dim=0)
-        z1 = model.encode_image(to_clip_input(seeds).to(device))
-        z2 = model.encode_image(to_clip_input(gens).to(device))
+        z1 = model.encode_image(to_clip_input(seeds, p_min, p_max).to(device))
+        z2 = model.encode_image(to_clip_input(gens, p_min, p_max).to(device))
         z1 = F.normalize(z1, dim=-1)
         z2 = F.normalize(z2, dim=-1)
         scores.extend((z1 * z2).sum(dim=-1).float().cpu().tolist())
@@ -81,7 +89,8 @@ def main() -> None:
                 pack = torch.load(p, map_location='cpu')
                 bank = pack['failure_bank']
                 print(f'  {len(bank)} cases; scoring', flush=True)
-                scores = score_bank(bank, model, device, args.batch_size)
+                p_min, p_max = range_for_dir(d)
+                scores = score_bank(bank, model, device, args.batch_size, p_min, p_max)
 
                 with open(out, 'w', encoding='utf-8') as f:
                     for i, (it, s) in enumerate(zip(bank, scores)):
