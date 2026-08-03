@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import List, Optional, Sequence, Tuple
 
 import torch
+import torch.nn as nn
 
 from bayeswarp.data.datasets import pixel_range, standard_augmentation
 from bayeswarp.interpretability.saliency import compute_saliency
@@ -80,11 +81,24 @@ def random_localized_condition(
     return torch.cat(outputs, dim=0), y.clone()
 
 
+class _UnitRangeModel(nn.Module):
+    def __init__(self, model: nn.Module, p_min: torch.Tensor, p_max: torch.Tensor):
+        super().__init__()
+        self.model = model
+        self.register_buffer('lo', p_min.view(1, -1, 1, 1).clone())
+        self.register_buffer('hi', p_max.view(1, -1, 1, 1).clone())
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(self.lo + x * (self.hi - self.lo))
+
+
 def autoattack_condition(
     model,
     device: torch.device,
     X: torch.Tensor,
     y: torch.Tensor,
+    dataset_name: str,
+    normalization: str,
     epsilon: float = 8.0 / 255.0,
     batch_size: int = 32,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -96,12 +110,19 @@ def autoattack_condition(
             'Install torchattacks to run this fine-tuning condition.'
         ) from e
 
-    attack = torchattacks.AutoAttack(model, norm='Linf', eps=epsilon, version='standard', n_classes=int(y.max().item()) + 1)
+    p_min, p_max = pixel_range(dataset_name, normalization)
+    lo = p_min.to(device).view(1, -1, 1, 1)
+    hi = p_max.to(device).view(1, -1, 1, 1)
+    wrapped = _UnitRangeModel(model, p_min.to(device), p_max.to(device)).to(device).eval()
+
+    attack = torchattacks.AutoAttack(wrapped, norm='Linf', eps=epsilon, version='standard', n_classes=int(y.max().item()) + 1)
     outputs = []
     for start in range(0, X.size(0), batch_size):
         xb = X[start:start + batch_size].to(device)
         yb = y[start:start + batch_size].to(device)
-        outputs.append(attack(xb, yb).detach().cpu())
+        unit = ((xb - lo) / (hi - lo)).clamp(0, 1)
+        adv = attack(unit, yb).detach()
+        outputs.append((lo + adv * (hi - lo)).cpu())
     return torch.cat(outputs, dim=0), y.clone()
 
 

@@ -70,16 +70,16 @@ def test_grid_mutator_constraints():
     assert mutator.dim == 4
 
     x0 = torch.rand(3, 8, 8)
-    assert abs(mutator.u_bound - 1.2) < 1e-6
+    assert abs(mutator.u_bound - mutator.r) < 1e-6
     u = mutator.clip_u(torch.randn(mutator.dim) * 50.0)
-    assert float(u.abs().max()) <= mutator.u_bound + 1e-6
-    assert float(mutator.clip_u(torch.full((mutator.dim,), 0.5)).abs().max()) == 0.5
+    assert float(u.abs().max()) <= mutator.r + 1e-6
+    assert abs(float(mutator.clip_u(torch.full((mutator.dim,), 0.05)).abs().max()) - 0.05) < 1e-6
 
     deltas = mutator.sample_deltas(64, torch.device('cpu'))
     assert float(deltas.abs().max()) <= mutator.r + 1e-6
 
-    saturated = mutator.reconstruct(torch.full((mutator.dim,), mutator.u_bound), x0)
-    assert float(saturated[:, mask > 0].min()) >= 1.1 - 1e-5
+    accumulated = mutator.clip_u(torch.full((mutator.dim,), mutator.r) * 10.0)
+    assert float(accumulated.abs().max()) <= mutator.r + 1e-6
 
     x = mutator.reconstruct(u, x0)
     delta = (x - x0).abs().sum(dim=0)
@@ -243,9 +243,10 @@ def test_pipeline_and_metrics():
     assert set(out['stage_time_sec']) and all(v >= 0.0 for v in out['stage_time_sec'].values())
 
     images = [torch.rand(1, 1, 28, 28), torch.rand(1, 1, 28, 28)]
+    seeds = [torch.rand(1, 1, 28, 28), torch.rand(1, 1, 28, 28)]
     assert 0.0 <= neuron_coverage(model, images) <= 1.0
     assert 0.0 <= topk_neuron_coverage(model, images, 3) <= 1.0
-    assert 0.0 <= critical_neuron_coverage(model, images) <= 1.0
+    assert 0.0 <= critical_neuron_coverage(model, images, seeds) <= 1.0
 
 
 def test_analysis_metrics():
