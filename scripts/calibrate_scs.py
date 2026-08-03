@@ -10,7 +10,10 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / 'src'))
 import torch
 import torch.nn.functional as F
 
+from bayeswarp.utils.config import load_config
 from bayeswarp.utils.device import get_device
+from bayeswarp.data.datasets import pixel_range
+from bayeswarp.metrics.quality import to_unit_range
 
 BANKS = {
     'mnist': 'results/mnist_lenet4_smoothgrad/failures_suntest_run0.pt',
@@ -19,11 +22,16 @@ BANKS = {
 }
 
 
-def to_clip_input(x: torch.Tensor) -> torch.Tensor:
+def to_clip_input(x: torch.Tensor, p_min: torch.Tensor, p_max: torch.Tensor) -> torch.Tensor:
+    x = to_unit_range(x, p_min, p_max)
     if x.size(1) == 1:
         x = x.repeat(1, 3, 1, 1)
-    x = x.clamp(0, 1)
     return F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
+
+
+def range_for_bank(bank_path: str):
+    cfg = load_config(str(Path('configs') / f'{Path(bank_path).parent.name}.yaml'))
+    return pixel_range(cfg['dataset']['name'], cfg['dataset'].get('normalization', 'none'))
 
 
 def as_4d(x: torch.Tensor) -> torch.Tensor:
@@ -35,10 +43,10 @@ def as_4d(x: torch.Tensor) -> torch.Tensor:
 
 
 @torch.no_grad()
-def embed(imgs: torch.Tensor, model, device, batch: int = 256) -> torch.Tensor:
+def embed(imgs: torch.Tensor, model, device, p_min, p_max, batch: int = 256) -> torch.Tensor:
     out = []
     for i in range(0, imgs.size(0), batch):
-        z = model.encode_image(to_clip_input(imgs[i:i + batch]).to(device))
+        z = model.encode_image(to_clip_input(imgs[i:i + batch], p_min, p_max).to(device))
         out.append(F.normalize(z, dim=-1).cpu())
     return torch.cat(out, dim=0)
 
@@ -78,7 +86,7 @@ def main() -> None:
         print(f'  {len(seeds)} distinct seeds', flush=True)
         del pack, bank
 
-        z = embed(imgs, model, device)
+        z = embed(imgs, model, device, *range_for_bank(bank_path))
 
         g = torch.Generator().manual_seed(args.seed)
         n = len(seeds)

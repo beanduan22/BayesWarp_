@@ -52,7 +52,7 @@ for m in $METHODS; do
   f="results/$CFG/failures_$m.pt"
   [ -f "$f" ] || { step "skip export $CFG/$m (no $f)"; continue; }
   run "export_${CFG}_${m}" "figures/$CFG/$m/scs_strata.json" \
-    python scripts/export_scs_strata.py --failures "$f" --out "figures/$CFG/$m"
+    python scripts/export_scs_strata.py --config "configs/$CFG.yaml" --failures "$f" --out "figures/$CFG/$m"
 done
 
 step "ALL DONE"

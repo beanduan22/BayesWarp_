@@ -8,9 +8,11 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / 'src'))
 
 import torch
 
+from bayeswarp.utils.config import load_config
 from bayeswarp.utils.device import get_device
 from bayeswarp.utils.io import ensure_dir
-from bayeswarp.metrics.quality import SCSComputer
+from bayeswarp.data.datasets import pixel_range
+from bayeswarp.metrics.quality import SCSComputer, to_unit_range
 
 DATASETS = {
     'mnist': ['results/mnist_lenet4_smoothgrad', 'results/mnist_lenet5_smoothgrad'],
@@ -21,21 +23,20 @@ METHODS = ('adapt', 'nsgen', 'suntest')
 PICKS = ('max', 'median', 'min')
 
 
-def to_image(x: torch.Tensor) -> torch.Tensor:
-    if x.ndim == 4:
-        x = x.squeeze(0)
-    x = x.detach().float()
-    lo, hi = float(x.min()), float(x.max())
-    if hi - lo > 1e-8:
-        x = (x - lo) / (hi - lo)
-    return x.clamp(0, 1)
+def to_image(x: torch.Tensor, p_min: torch.Tensor, p_max: torch.Tensor) -> torch.Tensor:
+    return to_unit_range(x.detach().float(), p_min, p_max).squeeze(0)
+
+
+def range_for_dir(results_dir: str):
+    cfg = load_config(str(Path('configs') / f'{Path(results_dir).name}.yaml'))
+    return pixel_range(cfg['dataset']['name'], cfg['dataset'].get('normalization', 'none'))
 
 
 def as_batch(x: torch.Tensor) -> torch.Tensor:
     return x.unsqueeze(0) if x.ndim == 3 else x
 
 
-def score_bank(path: Path, scs: SCSComputer, sample: int, seed: int):
+def score_bank(path: Path, scs: SCSComputer, sample: int, seed: int, p_min, p_max):
     pack = torch.load(path, map_location='cpu')
     bank = pack['failure_bank']
     if not bank:
@@ -48,7 +49,7 @@ def score_bank(path: Path, scs: SCSComputer, sample: int, seed: int):
     for i in idx:
         item = bank[i]
         scored.append({
-            'scs': scs.score(as_batch(item['seed_x']), as_batch(item['x'])),
+            'scs': scs.score(as_batch(item['seed_x']), as_batch(item['x']), p_min, p_max),
             'bank': str(path),
             'index': i,
         })
@@ -89,14 +90,17 @@ def main():
     from torchvision.utils import make_grid, save_image
 
     device = get_device()
-    scs = SCSComputer(device)
+    ranges = {d: range_for_dir(d) for dirs in DATASETS.values() for d in dirs}
+    default_min, default_max = next(iter(ranges.values()))
+    scs = SCSComputer(device, default_min, default_max)
     out_root = ensure_dir(args.out)
     summary = {}
 
     for group, banks in build_groups(args.by).items():
         scored = []
         for p in banks:
-            got = score_bank(p, scs, args.sample, args.seed)
+            bank_min, bank_max = ranges[str(p.parent)]
+            got = score_bank(p, scs, args.sample, args.seed, bank_min, bank_max)
             print(f'{group}: scored {len(got):5d} from {p}', flush=True)
             scored.extend(got)
         if not scored:
@@ -116,7 +120,9 @@ def main():
         for name in PICKS:
             sel = picks[name]
             item = load_case(sel['bank'], sel['index'])
-            seed_x, gen_x = to_image(as_batch(item['seed_x'])), to_image(as_batch(item['x']))
+            pick_min, pick_max = ranges[str(Path(sel['bank']).parent)]
+            seed_x = to_image(as_batch(item['seed_x']), pick_min, pick_max)
+            gen_x = to_image(as_batch(item['x']), pick_min, pick_max)
             if seed_x.size(0) == 1:
                 seed_x, gen_x = seed_x.repeat(3, 1, 1), gen_x.repeat(3, 1, 1)
             method = Path(sel['bank']).stem.replace('failures_', '')

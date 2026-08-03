@@ -11,6 +11,7 @@ import torch
 from bayeswarp.utils.config import load_config
 from bayeswarp.utils.io import ensure_dir, save_json
 from bayeswarp.utils.device import get_device
+from bayeswarp.data.datasets import pixel_range
 from bayeswarp.metrics.quality import SCSComputer
 
 
@@ -86,7 +87,8 @@ def main():
     }
 
     if args.score_scs:
-        scs = SCSComputer(get_device())
+        p_min, p_max = pixel_range(cfg['dataset']['name'], cfg['dataset'].get('normalization', 'none'))
+        scs = SCSComputer(get_device(), p_min, p_max)
         payload['scs'] = torch.tensor(
             [scs.score(as_batch(first[int(i['seed_idx'])]['seed_x']), as_batch(i['x'])) for i in selected]
         )

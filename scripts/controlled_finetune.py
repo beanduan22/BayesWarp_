@@ -13,7 +13,7 @@ from bayeswarp.utils.config import load_config
 from bayeswarp.utils.seed import set_seed
 from bayeswarp.utils.io import ensure_dir, save_json
 from bayeswarp.utils.device import get_device
-from bayeswarp.data.datasets import build_datasets, build_loaders, dataset_meta
+from bayeswarp.data.datasets import build_datasets, build_loaders, dataset_meta, pixel_range
 from bayeswarp.models.factory import build_model, load_checkpoint
 from bayeswarp.metrics.quality import SCSComputer
 from bayeswarp.finetune.conditions import (
@@ -49,7 +49,8 @@ def build_added_samples(args, cfg, model, device, train_ds):
         failure_bank = pack['failure_bank']
         if args.condition == 'bayeswarp':
             return select_generated(failure_bank, args.num_samples)
-        scs = SCSComputer(device)
+        p_min, p_max = pixel_range(dataset_name, normalization)
+        scs = SCSComputer(device, p_min, p_max)
         scores = [
             scs.score(
                 item['seed_x'].unsqueeze(0) if item['seed_x'].ndim == 3 else item['seed_x'],
@@ -84,7 +85,15 @@ def build_added_samples(args, cfg, model, device, train_ds):
             eta=bw['eta'],
         )
     if args.condition == 'autoattack':
-        return autoattack_condition(model, device, X, y, epsilon=args.epsilon)
+        return autoattack_condition(
+            model,
+            device,
+            X,
+            y,
+            dataset_name=dataset_name,
+            normalization=normalization,
+            epsilon=args.epsilon,
+        )
     raise ValueError(f'Unsupported condition: {args.condition}')
 
 

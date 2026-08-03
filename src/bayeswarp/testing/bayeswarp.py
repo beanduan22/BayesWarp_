@@ -113,7 +113,7 @@ class BayesWarpTester:
             return ExactGPSurrogate(dim=dim, device=self.device, bound=bound)
         return SVGPSurrogate(dim=dim, m=self.cfg.m, device=self.device, bound=bound)
 
-    def _select_delta(self, surrogate, u: torch.Tensor, deltas: torch.Tensor, best: float, state: SeedState) -> torch.Tensor:
+    def _select_delta(self, surrogate, u: torch.Tensor, deltas: torch.Tensor, best: float, mutator, state: SeedState) -> torch.Tensor:
         if self.cfg.ablation == 'no_bayesian':
             idx = int(torch.randint(0, deltas.size(0), (1,)).item())
             return deltas[idx]
@@ -123,7 +123,7 @@ class BayesWarpTester:
         state.timers['surrogate_fit'] += time.perf_counter() - start
 
         start = time.perf_counter()
-        mu, sigma = surrogate.predict(u.unsqueeze(0) + deltas)
+        mu, sigma = surrogate.predict(mutator.clip_u(u.unsqueeze(0) + deltas))
         scores = self.acquisition(mu, sigma, self.cfg.kappa, best)
         choice = deltas[int(scores.argmax().item())]
         state.timers['acquisition'] += time.perf_counter() - start
@@ -182,7 +182,7 @@ class BayesWarpTester:
             deltas = mutator.sample_deltas(self.cfg.S, self.device)
             state.timers['candidate_sampling'] += time.perf_counter() - start
 
-            delta_u = self._select_delta(surrogate, u, deltas, best, state)
+            delta_u = self._select_delta(surrogate, u, deltas, best, mutator, state)
             u_tilde = mutator.clip_u(u + delta_u)
             f_tilde = self._evaluate(u_tilde, x0_img, og, tg, mutator, surrogate, state)
             used += 1
