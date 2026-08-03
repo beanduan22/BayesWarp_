@@ -10,13 +10,14 @@ python run_baseline.py --config configs/cifar10_resnet18_smoothgrad.yaml --basel
 python run_baseline.py --config configs/mnist_lenet5_smoothgrad.yaml --baseline suntest
 ```
 
-Each run writes `failures_<baseline>.pt` and `metrics_<baseline>.json` to the
-config's `output_dir`, in the same format `run_bayeswarp.py` produces, so the
-existing scripts consume baseline output unchanged:
+Each run writes `failures_<baseline>_run<run>.pt` and
+`metrics_<baseline>_run<run>.json` to the config's `output_dir`, in the same
+format `run_bayeswarp.py` produces, so the existing scripts consume baseline
+output unchanged:
 
 ```bash
-python evaluate_results.py --config <cfg> --failures results/<run>/failures_adapt.pt
-python finetune_with_failures.py --config <cfg> --failures results/<run>/failures_adapt.pt
+python evaluate_results.py --config <cfg> --failures results/<run>/failures_adapt_run0.pt
+python finetune_with_failures.py --config <cfg> --failures results/<run>/failures_adapt_run0.pt
 ```
 
 ## Provenance

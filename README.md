@@ -22,7 +22,7 @@ The `bayeswarp` block of each config:
 | `beta_min`, `beta_max` | `β` | Stagnation noise magnitude, sampled uniformly from this range |
 | `epsilon` | `ε` | Stagnation threshold on the objective change |
 | `kappa` | `κ` | UCB exploration weight |
-| `n` | `n` | Mutation grid is `n × n` per channel; search dim is `channels · n²` |
+| `n` | `n` | Mutation grid is `n × n`, shared across channels; search dim is `n²` |
 | `m` | `m` | Max inducing points; the active count is `min(m, |D_tg|)` |
 | `budget` | `B` | Total target-model evaluations **per seed**, split across targets |
 | `max_target_classes` | `K` | Alternative target classes explored per seed |
@@ -81,7 +81,7 @@ mkdir -p results/cifar10_resnet18
 cp weights/cifar10_resnet18.pt results/cifar10_resnet18/best.pt
 ```
 
-The ImageNet subjects (VGG19, ResNet50, EfficientNet-B0) use the torchvision
+The ImageNet subjects (VGG19-BN, ResNet50, EfficientNet-B0) use the torchvision
 pretrained weights, so their configs set `checkpoint: null` and need no asset.
 
 Every checkpoint is reproducible from this repository without the assets:
@@ -92,7 +92,7 @@ python train.py --config configs/cifar10_resnet18_train.yaml
 
 ## Run
 
-Train, generate failures, evaluate, then fine-tune. Swap the config name for any entry in `configs/` (MNIST / CIFAR-10 / ImageNet × LeNet-4 / LeNet-5 / VGG16 / VGG19 / ResNet18 / ResNet50 × Grad-CAM / Integrated Gradients / SmoothGrad).
+Train, generate failures, evaluate, then fine-tune. Swap the config name for any entry in `configs/`.
 
 ```bash
 python train.py --config configs/mnist_lenet5_train.yaml
@@ -101,11 +101,11 @@ python run_bayeswarp.py --config configs/mnist_lenet5_smoothgrad.yaml
 
 python evaluate_results.py \
   --config configs/mnist_lenet5_smoothgrad.yaml \
-  --failures results/mnist_lenet5_smoothgrad/failures_main.pt
+  --failures results/mnist_lenet5_smoothgrad/failures_main_run0.pt
 
 python finetune_with_failures.py \
   --config configs/mnist_lenet5_smoothgrad.yaml \
-  --failures results/mnist_lenet5_smoothgrad/failures_main.pt
+  --failures results/mnist_lenet5_smoothgrad/failures_main_run0.pt
 ```
 
 Ablations:
