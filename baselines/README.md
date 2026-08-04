@@ -33,4 +33,3 @@ they are reimplemented from their papers rather than vendored. These are
 reimplementations, not the original artifacts. Each module docstring records the
 deviations from its source.
 
-=
