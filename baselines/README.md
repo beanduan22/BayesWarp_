@@ -22,11 +22,11 @@ python finetune_with_failures.py --config <cfg> --failures results/<run>/failure
 
 ## Provenance
 
-| Baseline | Paper | Reference repo | License | This code |
+| Baseline | Paper | Reference repo |
 |---|---|---|---|---|
-| ADAPT | Lee et al., ISSTA 2020 | https://github.com/kupl/adapt | MIT | PyTorch port |
-| NSGen | Huang et al., TOSEM | https://github.com/unknownhl/NSGen | none | reimplementation |
-| SUNTest | Guo et al., TOSEM 2025 | https://github.com/TestingAIGroup/SUNTest | none | reimplementation |
+| ADAPT | Lee et al., ISSTA 2020 | https://github.com/kupl/adapt | 
+| NSGen | Huang et al., TOSEM | https://github.com/unknownhl/NSGen | 
+| SUNTest | Guo et al., TOSEM 2025 | https://github.com/TestingAIGroup/SUNTest |
 
 The reference implementations target TensorFlow/Keras. Two ship no license, so
 they are reimplemented from their papers rather than vendored. These are
