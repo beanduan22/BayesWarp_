@@ -23,7 +23,7 @@ python finetune_with_failures.py --config <cfg> --failures results/<run>/failure
 ## Provenance
 
 | Baseline | Paper | Reference repo |
-|---|---|---|---|---|
+|---|---|---|
 | ADAPT | Lee et al., ISSTA 2020 | https://github.com/kupl/adapt | 
 | NSGen | Huang et al., TOSEM | https://github.com/unknownhl/NSGen | 
 | SUNTest | Guo et al., TOSEM 2025 | https://github.com/TestingAIGroup/SUNTest |
@@ -33,21 +33,4 @@ they are reimplemented from their papers rather than vendored. These are
 reimplementations, not the original artifacts. Each module docstring records the
 deviations from its source.
 
-## Configuration
-
-Per-baseline overrides go in a `baselines:` block in the config:
-
-```yaml
-baselines:
-  adapt:
-    k: 10
-    lr: 0.1
-    delta: 0.5
-  nsgen:
-    alpha_accept: 0.72
-    pseudo_topk: 3
-  suntest:
-    lam: 0.1
-    formula: dstar
-    localization_samples: 2000
-```
+=
