@@ -5,34 +5,6 @@ are localized to decision-critical input regions via saliency analysis, then
 explored with uncertainty-aware Bayesian optimization over a low-dimensional
 grid parameterization under a fixed target-model evaluation budget.
 
-## Hyperparameters
-
-The `bayeswarp` block of each config:
-
-| Config key | Symbol | Meaning |
-|---|---|---|
-| `alpha` | `α` | Proportion of salient pixels retained |
-| `area_min` | `A_min` | Minimum connected-component area |
-| `tau_iou` | `τ_iou` | Box-merging IoU threshold |
-| `d_max` | `d_max` | Box-merging centroid distance |
-| `rho` | `ρ` | Max share of the image allowed for mutation |
-| `S` | `S` | Candidate increments sampled per search step |
-| `eta` | `η` | Pixel-range relaxation factor |
-| `r` | `r` | Max grid-level mutation magnitude; `u` is clipped to `[-r, r]` |
-| `beta_min`, `beta_max` | `β` | Stagnation noise magnitude, sampled uniformly from this range |
-| `epsilon` | `ε` | Stagnation threshold on the objective change |
-| `kappa` | `κ` | UCB exploration weight |
-| `n` | `n` | Mutation grid is `n × n`, shared across channels; search dim is `n²` |
-| `m` | `m` | Max inducing points; the active count is `min(m, |D_tg|)` |
-| `budget` | `B` | Total target-model evaluations **per seed**, split across targets |
-| `max_target_classes` | `K` | Alternative target classes explored per seed |
-
-`budget` is the total per seed, not per target: it is divided as evenly as
-possible across the `K` confidence-ranked target classes, with any remainder
-assigned by confidence rank. Every forward pass on a newly constructed input
-counts against it, including the extra evaluation after a stagnation
-perturbation. The seed's own prediction is cached and not counted; saliency
-computation is excluded from the budget but included in wall-clock time.
 
 ## Install
 
