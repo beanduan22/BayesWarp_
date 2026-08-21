@@ -17,6 +17,8 @@ from bayeswarp.data.datasets import dataset_meta, pixel_range
 from bayeswarp.models.factory import build_model, load_checkpoint
 from bayeswarp.metrics.quality import SCSComputer, compute_fid
 from bayeswarp.metrics.coverage import neuron_coverage, topk_neuron_coverage, critical_neuron_coverage
+from bayeswarp.finetune.sources import bank_seed_ids
+from bayeswarp.pipeline import build_seeds
 
 
 def default_topk(dataset_name: str) -> int:
@@ -32,6 +34,14 @@ def default_topk(dataset_name: str) -> int:
 
 def as_batch(x: torch.Tensor) -> torch.Tensor:
     return x if x.ndim == 4 else x.unsqueeze(0)
+
+
+def fallback_indices(cfg, model, device, pack):
+    """Seed-subset dataset indices, needed only for packs written before seed ids existed."""
+    seed_results = pack.get('seed_results') or []
+    if seed_results and 'seed_id' in seed_results[0]:
+        return None
+    return [int(i) for i in build_seeds(cfg, model, device).indices]
 
 
 def scs_strata(scores):
@@ -53,6 +63,12 @@ def main():
     parser.add_argument('--label', default='main')
     parser.add_argument('--quality-samples', type=int, default=1000)
     parser.add_argument('--coverage-samples', type=int, default=256)
+    parser.add_argument(
+        '--scs-per-seed', type=int, default=20,
+        help='Cases per source seed used for the per-seed SCS. Sampling per seed rather than '
+             'globally keeps per_seed_scs defined for every seed, so paired-by-seed tests '
+             'compare the same seeds across methods.',
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -78,6 +94,17 @@ def main():
     metrics = dict(pack.get('metrics', {}))
     metrics['label'] = args.label
 
+    # Packs written before seed ids existed carry positional indices only. Resolve
+    # them here so downstream statistics can still pair by seed identity instead of
+    # by array position.
+    seed_fallback = fallback_indices(cfg, model, device, pack)
+    if 'seed_ids' not in metrics:
+        seed_results = pack.get('seed_results') or []
+        if seed_results and 'seed_id' in seed_results[0]:
+            metrics['seed_ids'] = [int(r['seed_id']) for r in seed_results]
+        elif seed_fallback is not None and len(seed_fallback) == len(seed_results):
+            metrics['seed_ids'] = list(seed_fallback)
+
     try:
         metrics['FID'] = compute_fid(real_images, fake_images, device, p_min, p_max)
     except Exception as e:
@@ -91,12 +118,32 @@ def main():
         ]
         metrics['SCS'] = float(sum(scores) / max(1, len(scores)))
         metrics['SCS_strata'] = scs_strata(scores)
-        grouped = defaultdict(list)
-        for item, score in zip(sample, scores):
-            grouped[int(item['seed_idx'])].append(score)
-        metrics['per_seed_scs'] = [
-            float(sum(v) / len(v)) for _, v in sorted(grouped.items())
-        ]
+
+        # Per-seed SCS is scored on a per-seed stratified draw, not on the global
+        # quality subsample: paired-by-seed statistics need the same seed set on
+        # both sides, which a global subsample does not guarantee.
+        bank_ids = bank_seed_ids(pack, seed_fallback)
+        by_seed = defaultdict(list)
+        for seed_id, item in zip(bank_ids, failure_bank):
+            by_seed[int(seed_id)].append(item)
+        strat_rng = random.Random(cfg['seed'])
+        scs_seed_ids, per_seed_scs, per_seed_counts = [], [], []
+        for seed_id in tqdm(sorted(by_seed), desc='SCS per seed'):
+            items = by_seed[seed_id]
+            if len(items) > args.scs_per_seed:
+                items = strat_rng.sample(items, args.scs_per_seed)
+            seed_scores = [scs.score(as_batch(it['seed_x']), as_batch(it['x'])) for it in items]
+            scs_seed_ids.append(int(seed_id))
+            per_seed_scs.append(float(sum(seed_scores) / len(seed_scores)))
+            per_seed_counts.append(len(seed_scores))
+        metrics['scs_seed_ids'] = scs_seed_ids
+        metrics['per_seed_scs'] = per_seed_scs
+        metrics['per_seed_scs_cases'] = per_seed_counts
+        metrics['scs_per_seed_cap'] = int(args.scs_per_seed)
+        # SCS is undefined for a seed that produced no cases; record which seeds
+        # those are so a paired-by-seed comparison can account for them explicitly.
+        all_ids = [int(v) for v in metrics.get('seed_ids', [])]
+        metrics['scs_seeds_without_cases'] = sorted(set(all_ids) - set(scs_seed_ids))
     except Exception as e:
         metrics['SCS'] = f'Unavailable: {e}'
 

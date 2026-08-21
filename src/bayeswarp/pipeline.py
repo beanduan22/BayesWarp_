@@ -64,18 +64,27 @@ def generate(
     bw_cfg = BayesWarpConfig(ablation=ablation, **cfg['bayeswarp'])
     tester = BayesWarpTester(model, device, bw_cfg, p_min, p_max)
 
+    seed_ids = [int(index) for index in seed_subset.indices]
+
     seed_results = []
     failure_bank = []
     for i in tqdm(range(len(seed_subset)), desc=progress):
         x, y = seed_subset[i]
         result = tester.run_on_seed(x)
         result['seed_idx'] = i
+        result['seed_id'] = seed_ids[i]
         result['seed_y'] = int(y)
         seed_results.append(result)
         for f in result['failures']:
-            failure_bank.append({'seed_idx': i, 'seed_x': x.cpu(), 'seed_y': int(y), **f})
+            failure_bank.append({
+                'seed_idx': i,
+                'seed_id': seed_ids[i],
+                'seed_x': x.cpu(),
+                'seed_y': int(y),
+                **f,
+            })
 
-    metrics = compute_failure_metrics(seed_results, budget=bw_cfg.budget)
+    metrics = compute_failure_metrics(seed_results, budget=bw_cfg.budget, seed_ids=seed_ids)
     metrics['method'] = 'bayeswarp'
     metrics['ablation'] = ablation
     metrics['run'] = run

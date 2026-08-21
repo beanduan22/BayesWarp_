@@ -1,6 +1,6 @@
 from __future__ import annotations
 from statistics import median
-from typing import Dict, List
+from typing import Dict, List, Optional, Sequence
 
 
 def _quartiles(values: List[float]):
@@ -16,7 +16,23 @@ def _quartiles(values: List[float]):
     return float(median(ordered)), float(q1), float(q3)
 
 
-def compute_failure_metrics(seed_results: List[Dict], budget: int = 0) -> Dict:
+def compute_failure_metrics(
+    seed_results: List[Dict],
+    budget: int = 0,
+    seed_ids: Optional[Sequence[int]] = None,
+) -> Dict:
+    if seed_ids is None:
+        resolved_ids = [
+            int(r.get('seed_id', r.get('seed_idx', position)))
+            for position, r in enumerate(seed_results)
+        ]
+    else:
+        resolved_ids = [int(v) for v in seed_ids]
+        if len(resolved_ids) != len(seed_results):
+            raise ValueError('seed_ids must have one entry per seed result')
+    if len(set(resolved_ids)) != len(resolved_ids):
+        raise ValueError('seed ids must be unique so per-seed metrics can be paired by id')
+
     total_failures = sum(len(r['failures']) for r in seed_results)
     total_seeds = len(seed_results)
     inducing_seed_count = sum(1 for r in seed_results if len(r['failures']) > 0)
@@ -49,6 +65,7 @@ def compute_failure_metrics(seed_results: List[Dict], budget: int = 0) -> Dict:
             stage_totals[stage] = stage_totals.get(stage, 0.0) + float(value)
 
     return {
+        'seed_ids': resolved_ids,
         'NoF': int(total_failures),
         'FSR': float(inducing_seed_count / max(1, total_seeds)),
         'TPF': float(total_time / max(1, total_failures)),

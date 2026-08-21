@@ -60,18 +60,27 @@ def main():
     baseline = BASELINES[args.baseline](model, device, baseline_cfg)
     baseline.prepare(seed_ds)
 
+    seed_ids = [int(index) for index in seed_subset.indices]
+
     seed_results = []
     failure_bank = []
     for i in tqdm(range(len(seed_subset)), desc=f'{args.baseline}: generating'):
         x, y = seed_subset[i]
         result = baseline.run_on_seed(x, budget)
         result['seed_idx'] = i
+        result['seed_id'] = seed_ids[i]
         result['seed_y'] = int(y)
         seed_results.append(result)
         for f in result['failures']:
-            failure_bank.append({'seed_idx': i, 'seed_x': x.cpu(), 'seed_y': int(y), **f})
+            failure_bank.append({
+                'seed_idx': i,
+                'seed_id': seed_ids[i],
+                'seed_x': x.cpu(),
+                'seed_y': int(y),
+                **f,
+            })
 
-    metrics = compute_failure_metrics(seed_results, budget=budget)
+    metrics = compute_failure_metrics(seed_results, budget=budget, seed_ids=seed_ids)
     metrics['method'] = args.baseline
     metrics['run'] = args.run
 

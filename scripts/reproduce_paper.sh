@@ -13,6 +13,17 @@ SALIENCY="gradcam ig smoothgrad"
 CIFAR_REF=configs/cifar10_resnet18_smoothgrad.yaml
 CIFAR_REF_DIR=results/cifar10_resnet18_smoothgrad
 
+# Controlled fine-tuning protocol: 100 shared source samples, 10 added training
+# samples derived from each, identical across all six conditions.
+NUM_SOURCES=100
+PER_SOURCE=10
+SCS_THRESHOLD=0.8
+FINETUNE_SOURCES="${CIFAR_REF_DIR}/finetune_sources.json"
+
+# Best-performing baseline per setting, used as the comparison side of the
+# per-seed SCS tests that the Holm family corrects over.
+SCS_PAIRS="mnist_lenet4:adapt mnist_lenet5:suntest cifar10_vgg16:suntest cifar10_resnet18:nsgen imagenet_vgg19:adapt imagenet_resnet50:nsgen"
+
 python train.py --config configs/mnist_lenet4_train.yaml
 python train.py --config configs/mnist_lenet5_train.yaml
 python train.py --config configs/cifar10_vgg16_train.yaml
@@ -126,15 +137,40 @@ for configuration in svgp_ucb svgp_ei svgp_kappa0 svgp_k1 no_noise exactgp_ucb c
   done
 done
 
+# Controlled fine-tuning study. The source manifest is built once, from every
+# failure pack the generated conditions draw on, so all six conditions in all
+# five runs add samples derived from the same NUM_SOURCES sources, PER_SOURCE
+# samples each, with the same class distribution.
+FINETUNE_PACKS=""
+for run in $RUNS; do
+  FINETUNE_PACKS="$FINETUNE_PACKS ${CIFAR_REF_DIR}/failures_main_run${run}.pt"
+done
+
+python scripts/build_finetune_sources.py \
+  --config "$CIFAR_REF" \
+  --failures $FINETUNE_PACKS \
+  --num-sources "$NUM_SOURCES" \
+  --per-source "$PER_SOURCE" \
+  --scs-threshold "$SCS_THRESHOLD" \
+  --out "$FINETUNE_SOURCES"
+
 for run in $RUNS; do
   for condition in continued standard random autoattack; do
-    python scripts/controlled_finetune.py --config "$CIFAR_REF" --condition "$condition" --run "$run"
+    python scripts/controlled_finetune.py --config "$CIFAR_REF" \
+      --condition "$condition" --sources "$FINETUNE_SOURCES" --run "$run"
   done
   python scripts/controlled_finetune.py --config "$CIFAR_REF" --condition high_scs \
+    --sources "$FINETUNE_SOURCES" --scs-threshold "$SCS_THRESHOLD" \
     --failures "${CIFAR_REF_DIR}/failures_main_run${run}.pt" --run "$run"
   python scripts/controlled_finetune.py --config "$CIFAR_REF" --condition bayeswarp \
+    --sources "$FINETUNE_SOURCES" \
     --failures "${CIFAR_REF_DIR}/failures_main_run${run}.pt" --run "$run"
 done
+
+python scripts/verify_finetune_protocol.py \
+  --results "${CIFAR_REF_DIR}/controlled_finetune_*.json" \
+  --expect-conditions continued standard random autoattack high_scs bayeswarp \
+  --out "${CIFAR_REF_DIR}/controlled_finetune_protocol.json"
 
 for base in $MNIST_CONFIGS $CIFAR_CONFIGS $IMAGENET_CONFIGS; do
   python finetune_with_failures.py \
@@ -212,34 +248,72 @@ python scripts/export_sample_pack.py \
   --out samples/imagenet_efficientnetb0_smoothgrad \
   --run 0 --score-scs
 
-for base in $MNIST_CONFIGS; do
+# Human validation. Cases are drawn across all five runs, at most one per source
+# seed, rotating over source classes, so the 30 cases per method are 30 distinct
+# sources rather than a cluster of repeats from a few prolific seeds.
+sample_human_validation() {
+  base="$1"
+  shift
+  packs=""
+  methods=""
+  runs=""
+  for spec in "$@"; do
+    label="${spec%%:*}"
+    prefix="${spec##*:}"
+    for run in $RUNS; do
+      packs="$packs results/${base}_smoothgrad/failures_${prefix}_run${run}.pt"
+      methods="$methods $label"
+      runs="$runs $run"
+    done
+  done
   python scripts/sample_human_validation.py \
     --config "configs/${base}_smoothgrad.yaml" \
-    --failures "results/${base}_smoothgrad/failures_main_run0.pt" \
-               "results/${base}_smoothgrad/failures_adapt_run0.pt" \
-               "results/${base}_smoothgrad/failures_suntest_run0.pt" \
-    --methods bayeswarp adapt suntest \
+    --failures $packs \
+    --methods $methods \
+    --runs $runs \
+    --per-method 30 \
+    --max-per-seed 1 \
     --out-dir "results/human_validation/${base}"
+}
+
+for base in $MNIST_CONFIGS; do
+  sample_human_validation "$base" bayeswarp:main adapt:adapt suntest:suntest
 done
 
 for base in $CIFAR_CONFIGS; do
-  python scripts/sample_human_validation.py \
-    --config "configs/${base}_smoothgrad.yaml" \
-    --failures "results/${base}_smoothgrad/failures_main_run0.pt" \
-               "results/${base}_smoothgrad/failures_suntest_run0.pt" \
-               "results/${base}_smoothgrad/failures_nsgen_run0.pt" \
-    --methods bayeswarp suntest nsgen \
-    --out-dir "results/human_validation/${base}"
+  sample_human_validation "$base" bayeswarp:main suntest:suntest nsgen:nsgen
 done
 
 for base in $IMAGENET_CONFIGS; do
-  python scripts/sample_human_validation.py \
-    --config "configs/${base}_smoothgrad.yaml" \
-    --failures "results/${base}_smoothgrad/failures_main_run0.pt" \
-               "results/${base}_smoothgrad/failures_adapt_run0.pt" \
-               "results/${base}_smoothgrad/failures_nsgen_run0.pt" \
-    --methods bayeswarp adapt nsgen \
-    --out-dir "results/human_validation/${base}"
+  sample_human_validation "$base" bayeswarp:main adapt:adapt nsgen:nsgen
 done
+
+# Per-seed SCS, BayesWarp vs the strongest baseline in each of the six settings,
+# then a single Holm correction over that family of six tests. The per-seed SCS
+# values are paired by source-seed id, not by array position.
+mkdir -p results/statistics
+SCS_STAT_FILES=""
+SCS_STAT_LABELS=""
+for pair in $SCS_PAIRS; do
+  base="${pair%%:*}"
+  baseline="${pair##*:}"
+  out="results/statistics/scs_${base}_bayeswarp_vs_${baseline}.json"
+  python scripts/compute_statistics.py paired-seed \
+    --a "results/${base}_smoothgrad/evaluation_main_run*.json" \
+    --b "results/${base}_smoothgrad/evaluation_${baseline}_run*.json" \
+    --metric scs \
+    --allow-seed-intersection \
+    --out "$out"
+  SCS_STAT_FILES="$SCS_STAT_FILES $out"
+  SCS_STAT_LABELS="$SCS_STAT_LABELS ${base}_vs_${baseline}"
+done
+
+python scripts/compute_statistics.py holm-family \
+  --inputs $SCS_STAT_FILES \
+  --labels $SCS_STAT_LABELS \
+  --family-name "SCS: BayesWarp vs strongest baseline across six settings" \
+  --p-field wilcoxon_p_value \
+  --estimate-field hodges_lehmann_shift \
+  --out results/statistics/scs_holm_family.json
 
 python scripts/aggregate_results.py --root results --out results/summary.csv
