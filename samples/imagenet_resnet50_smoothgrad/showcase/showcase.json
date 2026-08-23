@@ -1,0 +1,116 @@
+{
+  "config": "imagenet_resnet50_smoothgrad.yaml",
+  "dataset": "imagenet",
+  "model": "resnet50",
+  "source": "results/imagenet_resnet50_smoothgrad/failures_main_run0.pt",
+  "selection": "top SCS with at least 0.8, one case per source seed, rotated over source classes",
+  "candidates_scored": 390,
+  "candidates_at_or_above_min_scs": 390,
+  "exported": 10,
+  "distinct_seeds": 10,
+  "distinct_source_classes": 10,
+  "scs_min": 0.9979,
+  "scs_max": 1.0,
+  "cases": [
+    {
+      "file_stem": "00_seed34477_689to601_scs1.000",
+      "seed_id": 34477,
+      "source_label": 689,
+      "source_class_name": "overskirt",
+      "original_pred": 689,
+      "generated_pred": 601,
+      "generated_class_name": "hoopskirt",
+      "scs": 1.0
+    },
+    {
+      "file_stem": "01_seed1495_29to26_scs1.000",
+      "seed_id": 1495,
+      "source_label": 29,
+      "source_class_name": "axolotl",
+      "original_pred": 29,
+      "generated_pred": 26,
+      "generated_class_name": "common newt",
+      "scs": 1.0
+    },
+    {
+      "file_stem": "02_seed19509_390to695_scs1.000",
+      "seed_id": 19509,
+      "source_label": 390,
+      "source_class_name": "eel",
+      "original_pred": 390,
+      "generated_pred": 695,
+      "generated_class_name": "padlock",
+      "scs": 0.9999
+    },
+    {
+      "file_stem": "03_seed36724_734to468_scs1.000",
+      "seed_id": 36724,
+      "source_label": 734,
+      "source_class_name": "police van",
+      "original_pred": 734,
+      "generated_pred": 468,
+      "generated_class_name": "cab",
+      "scs": 0.9998
+    },
+    {
+      "file_stem": "04_seed49361_987to962_scs1.000",
+      "seed_id": 49361,
+      "source_label": 987,
+      "source_class_name": "corn",
+      "original_pred": 987,
+      "generated_pred": 962,
+      "generated_class_name": "meat loaf",
+      "scs": 0.9996
+    },
+    {
+      "file_stem": "05_seed20508_410to730_scs1.000",
+      "seed_id": 20508,
+      "source_label": 410,
+      "source_class_name": "apiary",
+      "original_pred": 410,
+      "generated_pred": 730,
+      "generated_class_name": "plow",
+      "scs": 0.9996
+    },
+    {
+      "file_stem": "06_seed33220_664to851_scs0.999",
+      "seed_id": 33220,
+      "source_label": 664,
+      "source_class_name": "monitor",
+      "original_pred": 664,
+      "generated_pred": 851,
+      "generated_class_name": "television",
+      "scs": 0.9994
+    },
+    {
+      "file_stem": "07_seed49064_981to562_scs0.999",
+      "seed_id": 49064,
+      "source_label": 981,
+      "source_class_name": "ballplayer",
+      "original_pred": 981,
+      "generated_pred": 562,
+      "generated_class_name": "fountain",
+      "scs": 0.9993
+    },
+    {
+      "file_stem": "08_seed22342_446to527_scs0.999",
+      "seed_id": 22342,
+      "source_label": 446,
+      "source_class_name": "binder",
+      "original_pred": 446,
+      "generated_pred": 527,
+      "generated_class_name": "desktop computer",
+      "scs": 0.9987
+    },
+    {
+      "file_stem": "09_seed47532_950to415_scs0.998",
+      "seed_id": 47532,
+      "source_label": 950,
+      "source_class_name": "orange",
+      "original_pred": 950,
+      "generated_pred": 415,
+      "generated_class_name": "bakery",
+      "scs": 0.9979
+    }
+  ]
+}

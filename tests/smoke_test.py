@@ -92,16 +92,25 @@ def test_grid_mutator_constraints():
     assert mutator.dim == 4
 
     x0 = torch.rand(3, 8, 8)
-    assert abs(mutator.u_bound - mutator.r) < 1e-6
+    # `r` bounds each candidate increment; the accumulated perturbation is
+    # bounded by the relaxed pixel range, which is strictly wider. Capping the
+    # accumulation at `r` too would confine the search to a ball of radius r
+    # around the seed and, at the shipped r = 0.1, find no failures at all.
+    span = float((mutator.hi - mutator.lo).max())
+    assert abs(mutator.u_bound - span) < 1e-6
+    assert mutator.u_bound > mutator.r
+
     u = mutator.clip_u(torch.randn(mutator.dim) * 50.0)
-    assert float(u.abs().max()) <= mutator.r + 1e-6
+    assert float(u.abs().max()) <= mutator.u_bound + 1e-6
     assert abs(float(mutator.clip_u(torch.full((mutator.dim,), 0.05)).abs().max()) - 0.05) < 1e-6
 
     deltas = mutator.sample_deltas(64, torch.device('cpu'))
     assert float(deltas.abs().max()) <= mutator.r + 1e-6
 
+    # Repeated increments must be able to accumulate past a single step.
     accumulated = mutator.clip_u(torch.full((mutator.dim,), mutator.r) * 10.0)
-    assert float(accumulated.abs().max()) <= mutator.r + 1e-6
+    assert float(accumulated.abs().max()) > mutator.r
+    assert float(accumulated.abs().max()) <= mutator.u_bound + 1e-6
 
     x = mutator.reconstruct(u, x0)
     delta = (x - x0).abs().sum(dim=0)
@@ -603,6 +612,41 @@ def test_finetune_protocol_verifier_detects_mismatched_sources():
         assert run_verifier(tmp, conditions) == 1
 
 
+def test_bounded_case_storage_keeps_metrics_exact():
+    """Capping the stored bank must not move NoF, DoF, FSR or QFF."""
+    torch.manual_seed(0)
+    model = nn.Sequential(nn.Flatten(), nn.Linear(784, 10)).eval()
+    device = torch.device('cpu')
+    x0 = torch.rand(1, 28, 28)
+    cfg = base_config(budget=120, n=2, m=8)
+
+    # The search draws from the global torch RNG, so both runs are seeded
+    # identically and differ only in how many cases they retain.
+    torch.manual_seed(1234)
+    full = make_tester(model, device, cfg).run_on_seed(x0)
+    if full['n_failures'] == 0:
+        return  # nothing to bound on this synthetic model
+
+    cap = max(1, full['n_failures'] // 4)
+    torch.manual_seed(1234)
+    bounded = BayesWarpTester(
+        model, device, cfg, torch.zeros(1, 1, 1), torch.ones(1, 1, 1),
+        store_cases_per_seed=cap, store_seed=0,
+    ).run_on_seed(x0)
+
+    assert bounded['n_failures'] == full['n_failures']
+    assert bounded['failure_preds'] == full['failure_preds']
+    assert len(bounded['failures']) == min(cap, full['n_failures'])
+    assert len(full['failures']) == full['n_failures']
+
+    full_metrics = compute_failure_metrics([full], budget=cfg.budget)
+    bounded_metrics = compute_failure_metrics([bounded], budget=cfg.budget)
+    for key in ('NoF', 'FSR', 'DoF', 'per_seed_cases', 'per_seed_dof', 'per_seed_qff'):
+        assert bounded_metrics[key] == full_metrics[key], key
+    assert bounded_metrics['stored_cases'] == min(cap, full['n_failures'])
+    assert full_metrics['stored_cases'] == full['n_failures']
+
+
 def main():
     test_budget_allocation()
     test_grid_mutator_constraints()
@@ -614,6 +658,7 @@ def main():
     test_budget_is_exact_and_mutations_stay_in_region()
     test_search_variants_respect_budget()
     test_pipeline_and_metrics()
+    test_bounded_case_storage_keeps_metrics_exact()
     test_analysis_metrics()
     test_source_manifest_is_tamper_evident()
     test_conditions_preserve_the_source_protocol()

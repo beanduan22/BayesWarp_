@@ -1,0 +1,17 @@
+{
+  "config": "configs/mnist_lenet4_smoothgrad.yaml",
+  "dataset": "mnist",
+  "model": "lenet4",
+  "saliency_method": "smoothgrad",
+  "run": 0,
+  "selection_seed": 123,
+  "search_seed": 123,
+  "exported_cases": 200,
+  "unique_seeds": 20,
+  "distinct_changed_classes": 7,
+  "source_pool_cases": 32583,
+  "generation_num_seeds": 20,
+  "generation_budget_per_seed": 2000,
+  "generation_max_target_classes": 9,
+  "note": "Reduced-scale preview: generated with 20 input seeds and a per-seed budget of 2000 target-model evaluations, not the 100 seeds and 10000 evaluations of the paper protocol. Produced before the mutation-magnitude semantics were finalised; the cases saturate the localized region and are not representative of the final configuration."
+}

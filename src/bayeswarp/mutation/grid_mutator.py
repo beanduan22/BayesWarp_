@@ -28,7 +28,11 @@ class RegionMutator:
         span = hi - lo
         self.lo = lo - self.eta * span
         self.hi = hi + self.eta * span
-        self.u_bound = float(r)
+        # `r` scales each candidate increment; the accumulated perturbation is
+        # capped by the relaxed pixel range instead. Capping it at `r` as well
+        # confines the whole search to a ball of radius r around the seed, which
+        # for the shipped configs (r = 0.1) yields no failures at any budget.
+        self.u_bound = float((self.hi - self.lo).max())
 
     @property
     def dim(self) -> int:

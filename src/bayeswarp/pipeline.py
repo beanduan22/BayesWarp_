@@ -54,6 +54,7 @@ def generate(
     skip: int = 0,
     num_seeds: Optional[int] = None,
     progress: str = 'Generating test cases',
+    store_cases_per_seed: Optional[int] = None,
 ) -> Tuple[list, list, Dict[str, Any]]:
     set_seed(cfg['seed'])
     model = build_subject(cfg, device)
@@ -62,7 +63,11 @@ def generate(
     set_seed(cfg['seed'] + run)
     p_min, p_max = pixel_range(cfg['dataset']['name'], cfg['dataset'].get('normalization', 'none'))
     bw_cfg = BayesWarpConfig(ablation=ablation, **cfg['bayeswarp'])
-    tester = BayesWarpTester(model, device, bw_cfg, p_min, p_max)
+    tester = BayesWarpTester(
+        model, device, bw_cfg, p_min, p_max,
+        store_cases_per_seed=store_cases_per_seed,
+        store_seed=int(cfg['seed']) + run,
+    )
 
     seed_ids = [int(index) for index in seed_subset.indices]
 
@@ -86,6 +91,7 @@ def generate(
 
     metrics = compute_failure_metrics(seed_results, budget=bw_cfg.budget, seed_ids=seed_ids)
     metrics['method'] = 'bayeswarp'
+    metrics['store_cases_per_seed'] = store_cases_per_seed
     metrics['ablation'] = ablation
     metrics['run'] = run
     return seed_results, failure_bank, metrics

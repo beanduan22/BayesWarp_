@@ -22,6 +22,12 @@ FINETUNE_SOURCES="${CIFAR_REF_DIR}/finetune_sources.json"
 
 # Best-performing baseline per setting, used as the comparison side of the
 # per-seed SCS tests that the Holm family corrects over.
+# Cases retained per seed. NoF/DoF/FSR/QFF are computed over every failure and
+# stay exact; only the stored bank is bounded. At FSR 1.0 an uncapped ImageNet
+# bank runs to hundreds of GB.
+STORE_SMALL=100
+STORE_IMAGENET=40
+
 SCS_PAIRS="mnist_lenet4:adapt mnist_lenet5:suntest cifar10_vgg16:suntest cifar10_resnet18:nsgen imagenet_vgg19:adapt imagenet_resnet50:nsgen"
 
 python train.py --config configs/mnist_lenet4_train.yaml
@@ -54,7 +60,12 @@ done
 for base in $MNIST_CONFIGS $CIFAR_CONFIGS $IMAGENET_CONFIGS; do
   for saliency in $SALIENCY; do
     for run in $RUNS; do
-      python run_bayeswarp.py --config "configs/${base}_${saliency}.yaml" --run "$run"
+      case "$base" in
+        imagenet_*) store=$STORE_IMAGENET ;;
+        *)          store=$STORE_SMALL ;;
+      esac
+      python run_bayeswarp.py --config "configs/${base}_${saliency}.yaml" --run "$run" \
+        --store-cases-per-seed "$store"
       python evaluate_results.py \
         --config "configs/${base}_${saliency}.yaml" \
         --failures "results/${base}_${saliency}/failures_main_run${run}.pt" \
@@ -63,12 +74,20 @@ for base in $MNIST_CONFIGS $CIFAR_CONFIGS $IMAGENET_CONFIGS; do
   done
 done
 
+# Reproduction-package samples: a browsable, size-bounded view of the run 0
+# packs, plus ten high-fidelity showcase cases per setting.
 for base in $MNIST_CONFIGS $CIFAR_CONFIGS $IMAGENET_CONFIGS; do
   python scripts/export_sample_pack.py \
     --config "configs/${base}_smoothgrad.yaml" \
     --failures "results/${base}_smoothgrad/failures_main_run0.pt" \
     --out "samples/${base}_smoothgrad" \
-    --run 0 --score-scs
+    --run 0 --score-scs --images
+
+  python scripts/export_showcase.py \
+    --config "configs/${base}_smoothgrad.yaml" \
+    --failures "results/${base}_smoothgrad/failures_main_run0.pt" \
+    --out "samples/${base}_smoothgrad/showcase" \
+    --count 10 --min-scs 0.8
 done
 
 for base in $MNIST_CONFIGS; do
@@ -110,7 +129,12 @@ done
 for base in $MNIST_CONFIGS $CIFAR_CONFIGS $IMAGENET_CONFIGS; do
   for ablation in no_localization no_bayesian; do
     for run in $RUNS; do
-      python run_bayeswarp.py --config "configs/${base}_smoothgrad.yaml" --ablation "$ablation" --run "$run"
+      case "$base" in
+        imagenet_*) store=$STORE_IMAGENET ;;
+        *)          store=$STORE_SMALL ;;
+      esac
+      python run_bayeswarp.py --config "configs/${base}_smoothgrad.yaml" --ablation "$ablation" --run "$run" \
+        --store-cases-per-seed "$store"
       python evaluate_results.py \
         --config "configs/${base}_smoothgrad.yaml" \
         --failures "results/${base}_smoothgrad/failures_${ablation}_run${run}.pt" \
@@ -121,7 +145,8 @@ done
 
 for ablation in no_merging no_grid; do
   for run in $RUNS; do
-    python run_bayeswarp.py --config "$CIFAR_REF" --ablation "$ablation" --run "$run"
+    python run_bayeswarp.py --config "$CIFAR_REF" --ablation "$ablation" --run "$run" \
+      --store-cases-per-seed "$STORE_SMALL"
     python evaluate_results.py \
       --config "$CIFAR_REF" \
       --failures "${CIFAR_REF_DIR}/failures_${ablation}_run${run}.pt" \
@@ -200,8 +225,13 @@ for entry in "mnist_lenet4 adapt" "cifar10_resnet18 nsgen" "imagenet_resnet50 ns
   set -- $entry
   base="$1"
   baseline="$2"
+  case "$base" in
+    imagenet_*) store=$STORE_IMAGENET ;;
+    *)          store=$STORE_SMALL ;;
+  esac
   python run_bayeswarp.py --config "configs/${base}_smoothgrad.yaml" \
-    --skip 100 --num-seeds 50 --suffix calibration --run 0
+    --skip 100 --num-seeds 50 --suffix calibration --run 0 \
+    --store-cases-per-seed "$store"
   python scripts/compute_redundancy.py \
     --config "configs/${base}_smoothgrad.yaml" \
     --failures "results/${base}_smoothgrad/failures_main_run0.pt" \
@@ -229,7 +259,8 @@ python scripts/plot_tsne.py --config configs/imagenet_resnet50_smoothgrad.yaml \
   --failures results/imagenet_resnet50_smoothgrad/failures_main_run0.pt --out figures/resnet50.pdf
 
 for run in $RUNS; do
-  python run_bayeswarp.py --config configs/imagenet_efficientnetb0_smoothgrad.yaml --run "$run"
+  python run_bayeswarp.py --config configs/imagenet_efficientnetb0_smoothgrad.yaml --run "$run" \
+    --store-cases-per-seed "$STORE_IMAGENET"
   python evaluate_results.py --config configs/imagenet_efficientnetb0_smoothgrad.yaml \
     --failures "results/imagenet_efficientnetb0_smoothgrad/failures_main_run${run}.pt" \
     --label "main_run${run}"
@@ -238,7 +269,8 @@ for run in $RUNS; do
     --failures "results/imagenet_efficientnetb0_smoothgrad/failures_nsgen_run${run}.pt" \
     --label "nsgen_run${run}"
 
-  python run_bayeswarp.py --config configs/imagenet_resnet50_smoothgrad_300seeds.yaml --run "$run"
+  python run_bayeswarp.py --config configs/imagenet_resnet50_smoothgrad_300seeds.yaml --run "$run" \
+    --store-cases-per-seed "$STORE_IMAGENET"
   python run_baseline.py --config configs/imagenet_resnet50_smoothgrad_300seeds.yaml --baseline nsgen --run "$run"
 done
 
@@ -246,7 +278,13 @@ python scripts/export_sample_pack.py \
   --config configs/imagenet_efficientnetb0_smoothgrad.yaml \
   --failures results/imagenet_efficientnetb0_smoothgrad/failures_main_run0.pt \
   --out samples/imagenet_efficientnetb0_smoothgrad \
-  --run 0 --score-scs
+  --run 0 --score-scs --images
+
+python scripts/export_showcase.py \
+  --config configs/imagenet_efficientnetb0_smoothgrad.yaml \
+  --failures results/imagenet_efficientnetb0_smoothgrad/failures_main_run0.pt \
+  --out samples/imagenet_efficientnetb0_smoothgrad/showcase \
+  --count 10 --min-scs 0.8
 
 # Human validation. Cases are drawn across all five runs, at most one per source
 # seed, rotating over source classes, so the 30 cases per method are 30 distinct

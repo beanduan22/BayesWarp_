@@ -1,0 +1,203 @@
+{
+  "config": "imagenet_vgg19_smoothgrad.yaml",
+  "dataset": "imagenet",
+  "model": "vgg19",
+  "saliency_method": "smoothgrad",
+  "seed_split": "val",
+  "run": 0,
+  "selection_seed": 123,
+  "search_seed": 123,
+  "exported_cases": 100,
+  "unique_seeds": 14,
+  "distinct_changed_classes": 16,
+  "source_pool_cases": 361,
+  "storage": "uint8 tensors in cases.pt; PNG pairs in images/",
+  "generation": {
+    "seeds_run": 100,
+    "budget_per_seed": 10000,
+    "mutation_dim": 16,
+    "store_cases_per_seed": 40,
+    "NoF": 5195,
+    "FSR": 0.14,
+    "DoF": 17,
+    "stored_cases": 361
+  },
+  "configured": {
+    "num_seeds": 100,
+    "budget": 10000,
+    "max_target_classes": 999,
+    "r": 0.1,
+    "eta": 0.1,
+    "n": 4
+  },
+  "note": "",
+  "scs": {
+    "mean": 0.9936,
+    "median": 0.9985,
+    "min": 0.9522,
+    "max": 1.0,
+    "share_at_or_above_0.8": 1.0
+  },
+  "images": [
+    {
+      "file_stem": "000_seed2243_44to40_scs0.983",
+      "seed_id": 2243,
+      "source_label": 44,
+      "original_pred": 44,
+      "generated_pred": 40,
+      "scs": 0.9827
+    },
+    {
+      "file_stem": "001_seed2497_49to344_scs0.999",
+      "seed_id": 2497,
+      "source_label": 49,
+      "original_pred": 49,
+      "generated_pred": 344,
+      "scs": 0.9986
+    },
+    {
+      "file_stem": "002_seed6514_130to932_scs1.000",
+      "seed_id": 6514,
+      "source_label": 130,
+      "original_pred": 130,
+      "generated_pred": 932,
+      "scs": 1.0
+    },
+    {
+      "file_stem": "003_seed7012_140to10_scs0.999",
+      "seed_id": 7012,
+      "source_label": 140,
+      "original_pred": 140,
+      "generated_pred": 10,
+      "scs": 0.9995
+    },
+    {
+      "file_stem": "004_seed8264_165to236_scs0.989",
+      "seed_id": 8264,
+      "source_label": 165,
+      "original_pred": 165,
+      "generated_pred": 236,
+      "scs": 0.9888
+    },
+    {
+      "file_stem": "005_seed9520_190to212_scs0.998",
+      "seed_id": 9520,
+      "source_label": 190,
+      "original_pred": 190,
+      "generated_pred": 212,
+      "scs": 0.9979
+    },
+    {
+      "file_stem": "006_seed11382_227to264_scs1.000",
+      "seed_id": 11382,
+      "source_label": 227,
+      "original_pred": 227,
+      "generated_pred": 264,
+      "scs": 0.9997
+    },
+    {
+      "file_stem": "007_seed12311_246to159_scs1.000",
+      "seed_id": 12311,
+      "source_label": 246,
+      "original_pred": 246,
+      "generated_pred": 159,
+      "scs": 0.9999
+    },
+    {
+      "file_stem": "008_seed17889_357to381_scs1.000",
+      "seed_id": 17889,
+      "source_label": 357,
+      "original_pred": 357,
+      "generated_pred": 381,
+      "scs": 0.9998
+    },
+    {
+      "file_stem": "009_seed29638_592to674_scs0.997",
+      "seed_id": 29638,
+      "source_label": 592,
+      "original_pred": 592,
+      "generated_pred": 674,
+      "scs": 0.9971
+    },
+    {
+      "file_stem": "010_seed31538_630to770_scs0.997",
+      "seed_id": 31538,
+      "source_label": 630,
+      "original_pred": 630,
+      "generated_pred": 770,
+      "scs": 0.9975
+    },
+    {
+      "file_stem": "011_seed34782_695to488_scs0.999",
+      "seed_id": 34782,
+      "source_label": 695,
+      "original_pred": 695,
+      "generated_pred": 488,
+      "scs": 0.9987
+    },
+    {
+      "file_stem": "012_seed40699_813to618_scs1.000",
+      "seed_id": 40699,
+      "source_label": 813,
+      "original_pred": 813,
+      "generated_pred": 618,
+      "scs": 0.9999
+    },
+    {
+      "file_stem": "013_seed46649_932to121_scs0.998",
+      "seed_id": 46649,
+      "source_label": 932,
+      "original_pred": 932,
+      "generated_pred": 121,
+      "scs": 0.9982
+    },
+    {
+      "file_stem": "014_seed2243_44to40_scs0.976",
+      "seed_id": 2243,
+      "source_label": 44,
+      "original_pred": 44,
+      "generated_pred": 40,
+      "scs": 0.9761
+    },
+    {
+      "file_stem": "015_seed2497_49to344_scs0.999",
+      "seed_id": 2497,
+      "source_label": 49,
+      "original_pred": 49,
+      "generated_pred": 344,
+      "scs": 0.9985
+    },
+    {
+      "file_stem": "016_seed6514_130to932_scs1.000",
+      "seed_id": 6514,
+      "source_label": 130,
+      "original_pred": 130,
+      "generated_pred": 932,
+      "scs": 1.0
+    },
+    {
+      "file_stem": "017_seed7012_140to10_scs0.999",
+      "seed_id": 7012,
+      "source_label": 140,
+      "original_pred": 140,
+      "generated_pred": 10,
+      "scs": 0.9991
+    },
+    {
+      "file_stem": "018_seed8264_165to236_scs0.989",
+      "seed_id": 8264,
+      "source_label": 165,
+      "original_pred": 165,
+      "generated_pred": 236,
+      "scs": 0.9887
+    },
+    {
+      "file_stem": "019_seed11382_227to264_scs1.000",
+      "seed_id": 11382,
+      "source_label": 227,
+      "original_pred": 227,
+      "generated_pred": 264,
+      "scs": 0.9996
+    }
+  ]
+}

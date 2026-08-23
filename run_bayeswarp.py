@@ -19,6 +19,12 @@ def main():
     parser.add_argument('--skip', type=int, default=0)
     parser.add_argument('--num-seeds', type=int, default=None)
     parser.add_argument('--suffix', default=None)
+    parser.add_argument(
+        '--store-cases-per-seed', type=int, default=None,
+        help='Retain at most this many generated cases per seed, sampled uniformly. '
+             'NoF, DoF, FSR and QFF stay exact; only the stored bank is bounded. '
+             'Needed on ImageNet, where an unbounded bank runs to hundreds of GB.',
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -31,6 +37,7 @@ def main():
         run=args.run,
         skip=args.skip,
         num_seeds=args.num_seeds,
+        store_cases_per_seed=args.store_cases_per_seed,
     )
 
     base = args.suffix or (args.ablation if args.ablation != 'none' else 'main')

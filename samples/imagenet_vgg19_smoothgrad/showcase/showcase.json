@@ -1,0 +1,116 @@
+{
+  "config": "imagenet_vgg19_smoothgrad.yaml",
+  "dataset": "imagenet",
+  "model": "vgg19",
+  "source": "results/imagenet_vgg19_smoothgrad/failures_main_run0.pt",
+  "selection": "top SCS with at least 0.8, one case per source seed, rotated over source classes",
+  "candidates_scored": 361,
+  "candidates_at_or_above_min_scs": 361,
+  "exported": 10,
+  "distinct_seeds": 10,
+  "distinct_source_classes": 10,
+  "scs_min": 0.9987,
+  "scs_max": 1.0,
+  "cases": [
+    {
+      "file_stem": "00_seed6514_130to932_scs1.000",
+      "seed_id": 6514,
+      "source_label": 130,
+      "source_class_name": "flamingo",
+      "original_pred": 130,
+      "generated_pred": 932,
+      "generated_class_name": "pretzel",
+      "scs": 1.0
+    },
+    {
+      "file_stem": "01_seed12311_246to159_scs1.000",
+      "seed_id": 12311,
+      "source_label": 246,
+      "source_class_name": "Great Dane",
+      "original_pred": 246,
+      "generated_pred": 159,
+      "generated_class_name": "Rhodesian ridgeback",
+      "scs": 1.0
+    },
+    {
+      "file_stem": "02_seed40699_813to618_scs1.000",
+      "seed_id": 40699,
+      "source_label": 813,
+      "source_class_name": "spatula",
+      "original_pred": 813,
+      "generated_pred": 618,
+      "generated_class_name": "ladle",
+      "scs": 1.0
+    },
+    {
+      "file_stem": "03_seed11382_227to264_scs1.000",
+      "seed_id": 11382,
+      "source_label": 227,
+      "source_class_name": "kelpie",
+      "original_pred": 227,
+      "generated_pred": 264,
+      "generated_class_name": "Cardigan",
+      "scs": 0.9999
+    },
+    {
+      "file_stem": "04_seed17889_357to381_scs1.000",
+      "seed_id": 17889,
+      "source_label": 357,
+      "source_class_name": "mink",
+      "original_pred": 357,
+      "generated_pred": 381,
+      "generated_class_name": "spider monkey",
+      "scs": 0.9998
+    },
+    {
+      "file_stem": "05_seed7012_140to10_scs0.999",
+      "seed_id": 7012,
+      "source_label": 140,
+      "source_class_name": "red-backed sandpiper",
+      "original_pred": 140,
+      "generated_pred": 10,
+      "generated_class_name": "brambling",
+      "scs": 0.9995
+    },
+    {
+      "file_stem": "06_seed29638_592to674_scs0.999",
+      "seed_id": 29638,
+      "source_label": 592,
+      "source_class_name": "hard disc",
+      "original_pred": 592,
+      "generated_pred": 674,
+      "generated_class_name": "mousetrap",
+      "scs": 0.9991
+    },
+    {
+      "file_stem": "07_seed31538_630to774_scs0.999",
+      "seed_id": 31538,
+      "source_label": 630,
+      "source_class_name": "Loafer",
+      "original_pred": 630,
+      "generated_pred": 774,
+      "generated_class_name": "sandal",
+      "scs": 0.9989
+    },
+    {
+      "file_stem": "08_seed46649_932to121_scs0.999",
+      "seed_id": 46649,
+      "source_label": 932,
+      "source_class_name": "pretzel",
+      "original_pred": 932,
+      "generated_pred": 121,
+      "generated_class_name": "king crab",
+      "scs": 0.9988
+    },
+    {
+      "file_stem": "09_seed34782_695to488_scs0.999",
+      "seed_id": 34782,
+      "source_label": 695,
+      "source_class_name": "padlock",
+      "original_pred": 695,
+      "generated_pred": 488,
+      "generated_class_name": "chain",
+      "scs": 0.9987
+    }
+  ]
+}

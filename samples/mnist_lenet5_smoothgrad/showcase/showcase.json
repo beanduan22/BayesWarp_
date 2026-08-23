@@ -1,0 +1,116 @@
+{
+  "config": "mnist_lenet5_smoothgrad.yaml",
+  "dataset": "mnist",
+  "model": "lenet5",
+  "source": "results/mnist_lenet5_smoothgrad/failures_main_run0.pt",
+  "selection": "top SCS with at least 0.8, one case per source seed, rotated over source classes",
+  "candidates_scored": 3000,
+  "candidates_at_or_above_min_scs": 3000,
+  "exported": 10,
+  "distinct_seeds": 10,
+  "distinct_source_classes": 6,
+  "scs_min": 0.9879,
+  "scs_max": 0.9983,
+  "cases": [
+    {
+      "file_stem": "00_seed20110_4to5_scs0.998",
+      "seed_id": 20110,
+      "source_label": 4,
+      "source_class_name": "digit 4",
+      "original_pred": 4,
+      "generated_pred": 5,
+      "generated_class_name": "digit 5",
+      "scs": 0.9983
+    },
+    {
+      "file_stem": "01_seed49672_5to9_scs0.998",
+      "seed_id": 49672,
+      "source_label": 5,
+      "source_class_name": "digit 5",
+      "original_pred": 5,
+      "generated_pred": 9,
+      "generated_class_name": "digit 9",
+      "scs": 0.9979
+    },
+    {
+      "file_stem": "02_seed12382_1to8_scs0.996",
+      "seed_id": 12382,
+      "source_label": 1,
+      "source_class_name": "digit 1",
+      "original_pred": 1,
+      "generated_pred": 8,
+      "generated_class_name": "digit 8",
+      "scs": 0.9962
+    },
+    {
+      "file_stem": "03_seed19486_1to8_scs0.995",
+      "seed_id": 19486,
+      "source_label": 1,
+      "source_class_name": "digit 1",
+      "original_pred": 1,
+      "generated_pred": 8,
+      "generated_class_name": "digit 8",
+      "scs": 0.995
+    },
+    {
+      "file_stem": "04_seed40629_8to9_scs0.994",
+      "seed_id": 40629,
+      "source_label": 8,
+      "source_class_name": "digit 8",
+      "original_pred": 8,
+      "generated_pred": 9,
+      "generated_class_name": "digit 9",
+      "scs": 0.9936
+    },
+    {
+      "file_stem": "05_seed13647_3to2_scs0.992",
+      "seed_id": 13647,
+      "source_label": 3,
+      "source_class_name": "digit 3",
+      "original_pred": 3,
+      "generated_pred": 2,
+      "generated_class_name": "digit 2",
+      "scs": 0.9915
+    },
+    {
+      "file_stem": "06_seed10768_4to5_scs0.990",
+      "seed_id": 10768,
+      "source_label": 4,
+      "source_class_name": "digit 4",
+      "original_pred": 4,
+      "generated_pred": 5,
+      "generated_class_name": "digit 5",
+      "scs": 0.9901
+    },
+    {
+      "file_stem": "07_seed30654_8to3_scs0.989",
+      "seed_id": 30654,
+      "source_label": 8,
+      "source_class_name": "digit 8",
+      "original_pred": 8,
+      "generated_pred": 3,
+      "generated_class_name": "digit 3",
+      "scs": 0.9891
+    },
+    {
+      "file_stem": "08_seed46379_3to7_scs0.989",
+      "seed_id": 46379,
+      "source_label": 3,
+      "source_class_name": "digit 3",
+      "original_pred": 3,
+      "generated_pred": 7,
+      "generated_class_name": "digit 7",
+      "scs": 0.989
+    },
+    {
+      "file_stem": "09_seed2480_6to5_scs0.988",
+      "seed_id": 2480,
+      "source_label": 6,
+      "source_class_name": "digit 6",
+      "original_pred": 6,
+      "generated_pred": 5,
+      "generated_class_name": "digit 5",
+      "scs": 0.9879
+    }
+  ]
+}

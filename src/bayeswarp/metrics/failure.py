@@ -33,9 +33,20 @@ def compute_failure_metrics(
     if len(set(resolved_ids)) != len(resolved_ids):
         raise ValueError('seed ids must be unique so per-seed metrics can be paired by id')
 
-    total_failures = sum(len(r['failures']) for r in seed_results)
+    # `n_failures` / `failure_preds` are the exact totals for a seed. They can
+    # exceed len(r['failures']) when the run kept only a bounded sample of the
+    # cases; every count below is taken from them so the metrics do not depend
+    # on how many cases were retained.
+    counts = [int(r.get('n_failures', len(r['failures']))) for r in seed_results]
+    preds = [
+        [int(v) for v in r['failure_preds']] if 'failure_preds' in r
+        else [int(f['pred']) for f in r['failures']]
+        for r in seed_results
+    ]
+
+    total_failures = sum(counts)
     total_seeds = len(seed_results)
-    inducing_seed_count = sum(1 for r in seed_results if len(r['failures']) > 0)
+    inducing_seed_count = sum(1 for c in counts if c > 0)
     total_time = sum(float(r['time_sec']) for r in seed_results)
 
     dof_set = set()
@@ -43,13 +54,10 @@ def compute_failure_metrics(
     per_seed_cases: List[int] = []
     qff_values: List[int] = []
 
-    for r in seed_results:
-        seed_classes = set()
-        for f in r['failures']:
-            dof_set.add(int(f['pred']))
-            seed_classes.add(int(f['pred']))
-        per_seed_dof.append(len(seed_classes))
-        per_seed_cases.append(len(r['failures']))
+    for r, count, seed_preds in zip(seed_results, counts, preds):
+        dof_set.update(seed_preds)
+        per_seed_dof.append(len(set(seed_preds)))
+        per_seed_cases.append(count)
         qff_values.append(int(r.get('qff', budget)))
 
     successful_cases = [c for c in per_seed_cases if c > 0]
@@ -66,6 +74,7 @@ def compute_failure_metrics(
 
     return {
         'seed_ids': resolved_ids,
+        'stored_cases': int(sum(len(r['failures']) for r in seed_results)),
         'NoF': int(total_failures),
         'FSR': float(inducing_seed_count / max(1, total_seeds)),
         'TPF': float(total_time / max(1, total_failures)),

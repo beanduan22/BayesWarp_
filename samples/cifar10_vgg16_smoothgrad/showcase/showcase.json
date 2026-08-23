@@ -1,0 +1,116 @@
+{
+  "config": "cifar10_vgg16_smoothgrad.yaml",
+  "dataset": "cifar10",
+  "model": "vgg16",
+  "source": "results/cifar10_vgg16_smoothgrad/failures_main_run0.pt",
+  "selection": "top SCS with at least 0.8, one case per source seed, rotated over source classes",
+  "candidates_scored": 3000,
+  "candidates_at_or_above_min_scs": 2998,
+  "exported": 10,
+  "distinct_seeds": 10,
+  "distinct_source_classes": 8,
+  "scs_min": 0.9846,
+  "scs_max": 0.9992,
+  "cases": [
+    {
+      "file_stem": "00_seed26416_0to8_scs0.999",
+      "seed_id": 26416,
+      "source_label": 0,
+      "source_class_name": "airplane",
+      "original_pred": 0,
+      "generated_pred": 8,
+      "generated_class_name": "ship",
+      "scs": 0.9992
+    },
+    {
+      "file_stem": "01_seed17953_4to3_scs0.997",
+      "seed_id": 17953,
+      "source_label": 4,
+      "source_class_name": "deer",
+      "original_pred": 4,
+      "generated_pred": 3,
+      "generated_class_name": "cat",
+      "scs": 0.997
+    },
+    {
+      "file_stem": "02_seed12980_7to5_scs0.995",
+      "seed_id": 12980,
+      "source_label": 7,
+      "source_class_name": "horse",
+      "original_pred": 7,
+      "generated_pred": 5,
+      "generated_class_name": "dog",
+      "scs": 0.9952
+    },
+    {
+      "file_stem": "03_seed40711_9to7_scs0.994",
+      "seed_id": 40711,
+      "source_label": 9,
+      "source_class_name": "truck",
+      "original_pred": 9,
+      "generated_pred": 7,
+      "generated_class_name": "horse",
+      "scs": 0.9944
+    },
+    {
+      "file_stem": "04_seed6697_5to3_scs0.991",
+      "seed_id": 6697,
+      "source_label": 5,
+      "source_class_name": "dog",
+      "original_pred": 5,
+      "generated_pred": 3,
+      "generated_class_name": "cat",
+      "scs": 0.991
+    },
+    {
+      "file_stem": "05_seed34307_2to4_scs0.990",
+      "seed_id": 34307,
+      "source_label": 2,
+      "source_class_name": "bird",
+      "original_pred": 2,
+      "generated_pred": 4,
+      "generated_class_name": "deer",
+      "scs": 0.9896
+    },
+    {
+      "file_stem": "06_seed15725_9to1_scs0.988",
+      "seed_id": 15725,
+      "source_label": 9,
+      "source_class_name": "truck",
+      "original_pred": 9,
+      "generated_pred": 1,
+      "generated_class_name": "automobile",
+      "scs": 0.9882
+    },
+    {
+      "file_stem": "07_seed21685_1to9_scs0.988",
+      "seed_id": 21685,
+      "source_label": 1,
+      "source_class_name": "automobile",
+      "original_pred": 1,
+      "generated_pred": 9,
+      "generated_class_name": "truck",
+      "scs": 0.9877
+    },
+    {
+      "file_stem": "08_seed22342_5to3_scs0.985",
+      "seed_id": 22342,
+      "source_label": 5,
+      "source_class_name": "dog",
+      "original_pred": 5,
+      "generated_pred": 3,
+      "generated_class_name": "cat",
+      "scs": 0.9846
+    },
+    {
+      "file_stem": "09_seed8067_3to9_scs0.985",
+      "seed_id": 8067,
+      "source_label": 3,
+      "source_class_name": "cat",
+      "original_pred": 3,
+      "generated_pred": 9,
+      "generated_class_name": "truck",
+      "scs": 0.9846
+    }
+  ]
+}

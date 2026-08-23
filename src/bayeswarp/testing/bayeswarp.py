@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
+import random
 import time
 
 import torch
@@ -72,6 +73,8 @@ class SeedState:
     used: int = 0
     qff: Optional[int] = None
     failures: List[Dict[str, Any]] = field(default_factory=list)
+    n_failures: int = 0
+    failure_preds: Set[int] = field(default_factory=set)
     timers: Dict[str, float] = field(default_factory=lambda: {s: 0.0 for s in STAGES})
 
 
@@ -83,6 +86,8 @@ class BayesWarpTester:
         cfg: BayesWarpConfig,
         p_min: torch.Tensor,
         p_max: torch.Tensor,
+        store_cases_per_seed: Optional[int] = None,
+        store_seed: int = 0,
     ):
         self.model = model
         self.device = device
@@ -90,6 +95,8 @@ class BayesWarpTester:
         self.p_min = p_min
         self.p_max = p_max
         self.acquisition = build_acquisition(cfg.acquisition)
+        self.store_cases_per_seed = None if store_cases_per_seed is None else int(store_cases_per_seed)
+        self._failure_rng = random.Random(int(store_seed))
 
     def _region_mask(self, x: torch.Tensor, og: int, state: SeedState) -> torch.Tensor:
         if self.cfg.ablation == 'no_localization':
@@ -150,7 +157,9 @@ class BayesWarpTester:
         if pred != og:
             if state.qff is None:
                 state.qff = state.used
-            state.failures.append({
+            state.n_failures += 1
+            state.failure_preds.add(int(pred))
+            self._store_failure(state, {
                 'x': x.detach().cpu(),
                 'target_class': int(tg),
                 'pred': int(pred),
@@ -158,6 +167,22 @@ class BayesWarpTester:
                 'evaluation_index': int(state.used),
             })
         return margin
+
+    def _store_failure(self, state: SeedState, record: Dict[str, Any]) -> None:
+        """Keep a bounded uniform sample of a seed's failures.
+
+        Counts and predicted classes are tracked separately in ``state``, so
+        NoF, DoF, FSR and QFF stay exact no matter how few cases are retained.
+        At FSR 1.0 an ImageNet seed produces ~10k cases of ~600 KB each, which
+        is why an unbounded bank is not storable.
+        """
+        cap = self.store_cases_per_seed
+        if cap is None or len(state.failures) < cap:
+            state.failures.append(record)
+            return
+        position = self._failure_rng.randrange(state.n_failures)
+        if position < cap:
+            state.failures[position] = record
 
     def _search_target_bayesian(
         self,
@@ -279,6 +304,8 @@ class BayesWarpTester:
         elapsed = time.perf_counter() - start
         return {
             'failures': state.failures,
+            'n_failures': int(state.n_failures),
+            'failure_preds': sorted(state.failure_preds),
             'og': int(og),
             'time_sec': float(elapsed),
             'evaluations_used': int(state.used),

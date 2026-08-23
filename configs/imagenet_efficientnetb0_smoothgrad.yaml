@@ -5,7 +5,7 @@ dataset:
   root: ./imagenet
   normalization: imagenet
   image_size: 224
-  seed_split: train
+  seed_split: val
 model:
   name: efficientnet_b0
   pretrained: true
