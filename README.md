@@ -55,6 +55,32 @@ cp weights/cifar10_resnet18.pt results/cifar10_resnet18/best.pt
 
 The ImageNet subjects (VGG19-BN, ResNet50, EfficientNet-B0) use the torchvision
 pretrained weights, so their configs set `checkpoint: null` and need no asset.
+`torch.hub` fetches each on first use into `~/.cache/torch/hub/checkpoints/`
+(override the root with `TORCH_HOME`) and verifies it against the sha256 prefix
+in the filename.
+
+| Config | torchvision weights enum | Download |
+|---|---|---|
+| `imagenet_vgg19_*` | `VGG19_BN_Weights.IMAGENET1K_V1` | https://download.pytorch.org/models/vgg19_bn-c79401a0.pth |
+| `imagenet_resnet50_*` | `ResNet50_Weights.IMAGENET1K_V1` | https://download.pytorch.org/models/resnet50-0676ba61.pth |
+| `imagenet_efficientnetb0_smoothgrad` | `EfficientNet_B0_Weights.IMAGENET1K_V1` | https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth |
+
+The CIFAR-10 subjects are initialised from `VGG16_Weights.IMAGENET1K_V1`
+(https://download.pytorch.org/models/vgg16-397923af.pth) and
+`ResNet18_Weights.IMAGENET1K_V1`
+(https://download.pytorch.org/models/resnet18-f37072fd.pth) before their own
+checkpoint is loaded over the top.
+
+On an offline machine, place the files under
+`~/.cache/torch/hub/checkpoints/` under their original names:
+
+```bash
+mkdir -p ~/.cache/torch/hub/checkpoints
+cd ~/.cache/torch/hub/checkpoints
+wget https://download.pytorch.org/models/vgg19_bn-c79401a0.pth
+wget https://download.pytorch.org/models/resnet50-0676ba61.pth
+wget https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth
+```
 
 Every checkpoint is reproducible from this repository without the assets:
 
