@@ -115,7 +115,7 @@ python run_bayeswarp.py --config configs/mnist_lenet5_smoothgrad.yaml --ablation
 
 Baselines (ADAPT, NSGen, SUNTest), run under the same seeds, oracle, and budget.
 Output is consumed by `evaluate_results.py` and `finetune_with_failures.py`
-unchanged. See [baselines/README.md](baselines/README.md).
+unchanged.
 
 ```bash
 python run_baseline.py --config configs/mnist_lenet5_smoothgrad.yaml --baseline adapt

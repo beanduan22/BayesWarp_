@@ -21,8 +21,6 @@ FINETUNE_SOURCES="${CIFAR_REF_DIR}/finetune_sources.json"
 STORE_SMALL=100
 STORE_IMAGENET=40
 
-SCS_PAIRS="mnist_lenet4:adapt mnist_lenet5:suntest cifar10_vgg16:suntest cifar10_resnet18:nsgen imagenet_vgg19:adapt imagenet_resnet50:nsgen"
-
 python train.py --config configs/mnist_lenet4_train.yaml
 python train.py --config configs/mnist_lenet5_train.yaml
 python train.py --config configs/cifar10_vgg16_train.yaml
@@ -307,18 +305,6 @@ done
 
 for base in $IMAGENET_CONFIGS; do
   sample_human_validation "$base" bayeswarp:main adapt:adapt nsgen:nsgen
-done
-
-mkdir -p results/statistics
-for pair in $SCS_PAIRS; do
-  base="${pair%%:*}"
-  baseline="${pair##*:}"
-  python scripts/compute_statistics.py paired-seed \
-    --a "results/${base}_smoothgrad/evaluation_main_run*.json" \
-    --b "results/${base}_smoothgrad/evaluation_${baseline}_run*.json" \
-    --metric scs \
-    --allow-seed-intersection \
-    --out "results/statistics/scs_${base}_bayeswarp_vs_${baseline}.json"
 done
 
 python scripts/aggregate_results.py --root results --out results/summary.csv

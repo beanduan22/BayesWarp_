@@ -7,22 +7,6 @@ import numpy as np
 from scipy import stats
 
 
-def paired_difference_ci(a: Sequence[float], b: Sequence[float], confidence: float = 0.95) -> Tuple[float, float, float]:
-    diff = np.asarray(a, dtype=float) - np.asarray(b, dtype=float)
-    n = diff.size
-    mean = float(diff.mean())
-    if n < 2:
-        return mean, float('nan'), float('nan')
-    sem = float(diff.std(ddof=1) / math.sqrt(n))
-    half = float(stats.t.ppf(0.5 + confidence / 2.0, df=n - 1) * sem)
-    return mean, mean - half, mean + half
-
-
-def paired_t_test(a: Sequence[float], b: Sequence[float]) -> Dict[str, float]:
-    result = stats.ttest_rel(np.asarray(a, dtype=float), np.asarray(b, dtype=float))
-    return {'statistic': float(result.statistic), 'p_value': float(result.pvalue)}
-
-
 def wilson_interval(successes: int, total: int, confidence: float = 0.95) -> Tuple[float, float, float]:
     if total == 0:
         return float('nan'), float('nan'), float('nan')

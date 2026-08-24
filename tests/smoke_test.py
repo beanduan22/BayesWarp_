@@ -1,5 +1,4 @@
 from __future__ import annotations
-import argparse
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1] / 'src'))
@@ -384,68 +383,6 @@ def test_bank_seed_ids_fall_back_to_positions():
     assert bank_seed_ids(pack, None) == [88, 77, 88]
 
 
-def test_paired_seed_alignment_uses_ids_not_positions():
-    import json
-    import tempfile
-    stats = _load_script('compute_statistics')
-
-    a = {'seed_ids': [10, 20, 30], 'per_seed_cases': [5.0, 7.0, 9.0], 'run': 0}
-    b = {'seed_ids': [30, 10, 20, 40], 'per_seed_cases': [1.0, 2.0, 3.0, 99.0], 'run': 0}
-
-    a_values, _ = stats.average_across_runs([('a.json', a)], 'per_seed_cases', 'seed_ids', False)
-    b_values, _ = stats.average_across_runs([('b.json', b)], 'per_seed_cases', 'seed_ids', False)
-    result = stats.paired_result(a_values, b_values, [10, 20, 30])
-    assert abs(result['mean_difference'] - 5.0) < 1e-9
-
-    with tempfile.TemporaryDirectory() as tmp:
-        a_path = Path(tmp) / 'a_run0.json'
-        b_path = Path(tmp) / 'b_run0.json'
-        a_path.write_text(json.dumps(a), encoding='utf-8')
-        b_path.write_text(json.dumps(b), encoding='utf-8')
-
-        strict = argparse.Namespace(
-            a=str(a_path), b=str(b_path), metric='nof', allow_seed_intersection=False,
-        )
-        refused = False
-        try:
-            stats.paired_seed(strict)
-        except ValueError as e:
-            refused = 'shared' in str(e)
-        assert refused, 'mismatched seed sets must not be silently truncated'
-
-        relaxed = argparse.Namespace(
-            a=str(a_path), b=str(b_path), metric='nof', allow_seed_intersection=True,
-        )
-        out = stats.paired_seed(relaxed)
-        assert out['n_pairs'] == 3
-        assert out['seed_ids'] == [10, 20, 30]
-        assert out['seeds_only_in_b'] == 1
-        assert abs(out['mean_difference'] - 5.0) < 1e-9
-
-    missing_ids = False
-    try:
-        stats.seed_series('x.json', {'per_seed_cases': [1.0]}, 'per_seed_cases', 'seed_ids')
-    except KeyError:
-        missing_ids = True
-    assert missing_ids
-
-
-def test_paired_scs_result_is_an_unadjusted_paired_t():
-    stats = _load_script('compute_statistics')
-    ids = list(range(12))
-    b = {i: float(i) for i in ids}
-    a = {i: b[i] + 1.0 + 0.25 * (i % 4) for i in ids}
-    result = stats.paired_result(a, b, ids)
-    assert result['test'] == 'paired_t_two_sided'
-    assert result['estimate'] == 'mean_difference'
-    assert result['confidence_level'] == 0.95
-    assert result['multiplicity_adjustment'] == 'none'
-    assert result['mean_difference_ci_low'] <= result['mean_difference'] <= result['mean_difference_ci_high']
-    assert 'mean_difference_p_value' in result
-    assert not any(key.startswith(('wilcoxon', 'hodges_lehmann')) for key in result)
-    assert not any('adjusted' in key or 'holm' in key for key in result)
-
-
 def test_human_validation_sample_is_uniform_random():
     import random
     sampler = _load_script('sample_human_validation')
@@ -599,8 +536,6 @@ def main():
     test_conditions_preserve_the_source_protocol()
     test_generated_selection_is_matched_per_source()
     test_bank_seed_ids_fall_back_to_positions()
-    test_paired_seed_alignment_uses_ids_not_positions()
-    test_paired_scs_result_is_an_unadjusted_paired_t()
     test_human_validation_sample_is_uniform_random()
     test_cluster_bootstrap_widens_when_cases_share_seeds()
     test_finetune_protocol_verifier_detects_mismatched_sources()
