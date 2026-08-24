@@ -446,7 +446,7 @@ def test_paired_scs_result_is_an_unadjusted_paired_t():
     assert not any('adjusted' in key or 'holm' in key for key in result)
 
 
-def test_human_validation_sample_avoids_seed_clusters():
+def test_human_validation_sample_is_uniform_random():
     import random
     sampler = _load_script('sample_human_validation')
 
@@ -462,21 +462,21 @@ def test_human_validation_sample_avoids_seed_clusters():
                     'item': (seed_id, run, k),
                 })
 
-    selected = sampler.balanced_sample(candidates, 30, 1, random.Random(0))
+    selected = sampler.random_sample(candidates, 30, random.Random(0))
     assert len(selected) == 30
-    seeds = [c['seed_id'] for c in selected]
-    assert len(set(seeds)) == 30
-    labels = {}
-    for case in selected:
-        labels[case['source_label']] = labels.get(case['source_label'], 0) + 1
-    assert max(labels.values()) - min(labels.values()) <= 1
-    assert len({c['run'] for c in selected}) > 1
+    assert len({id(c) for c in selected}) == 30
+    assert all(c in candidates for c in selected)
 
-    capped = sampler.balanced_sample(candidates, 60, 2, random.Random(1))
+    small = candidates[:10]
+    assert sampler.random_sample(small, 30, random.Random(0)) == small
+
     counts = {}
-    for case in capped:
-        counts[case['seed_id']] = counts.get(case['seed_id'], 0) + 1
-    assert max(counts.values()) <= 2
+    for trial in range(200):
+        for case in sampler.random_sample(candidates, 30, random.Random(trial)):
+            counts[case['seed_id']] = counts.get(case['seed_id'], 0) + 1
+    dominant = counts[0] / sum(counts.values())
+    share = 2500 / len(candidates)
+    assert abs(dominant - share) < 0.05
 
 
 def test_cluster_bootstrap_widens_when_cases_share_seeds():
@@ -601,7 +601,7 @@ def main():
     test_bank_seed_ids_fall_back_to_positions()
     test_paired_seed_alignment_uses_ids_not_positions()
     test_paired_scs_result_is_an_unadjusted_paired_t()
-    test_human_validation_sample_avoids_seed_clusters()
+    test_human_validation_sample_is_uniform_random()
     test_cluster_bootstrap_widens_when_cases_share_seeds()
     test_finetune_protocol_verifier_detects_mismatched_sources()
     print('SMOKE_TEST_OK')

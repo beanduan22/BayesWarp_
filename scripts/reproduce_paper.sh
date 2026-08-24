@@ -294,7 +294,6 @@ sample_human_validation() {
     --methods $methods \
     --runs $runs \
     --per-method 30 \
-    --max-per-seed 1 \
     --out-dir "results/human_validation/${base}"
 }
 

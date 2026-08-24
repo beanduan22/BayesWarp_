@@ -26,42 +26,10 @@ def denormalize(x: torch.Tensor, normalization: str) -> torch.Tensor:
     return image.clamp(0, 1)
 
 
-def _interleave_runs(cases, rng: random.Random):
-    by_run = defaultdict(list)
-    for case in cases:
-        by_run[case['run']].append(case)
-    for bucket in by_run.values():
-        rng.shuffle(bucket)
-    run_keys = sorted(by_run)
-    rng.shuffle(run_keys)
-    ordered = []
-    while any(by_run[k] for k in run_keys):
-        for key in run_keys:
-            if by_run[key]:
-                ordered.append(by_run[key].pop(0))
-    return ordered
-
-
-def balanced_sample(candidates, per_method: int, max_per_seed: int, rng: random.Random):
-    by_seed = defaultdict(list)
-    for case in candidates:
-        by_seed[case['seed_id']].append(case)
-
-    ranked = []
-    for seed_id in sorted(by_seed):
-        ordered = _interleave_runs(by_seed[seed_id], rng)
-        for rank, case in enumerate(ordered[:max_per_seed]):
-            ranked.append((rank, case))
-
-    positions = defaultdict(int)
-    entries = []
-    for rank, case in sorted(ranked, key=lambda pair: (pair[0], rng.random())):
-        key = (rank, case['source_label'])
-        entries.append(((rank, positions[key], rng.random()), case))
-        positions[key] += 1
-
-    entries.sort(key=lambda pair: pair[0])
-    return [case for _, case in entries[:per_method]]
+def random_sample(candidates, per_method: int, rng: random.Random):
+    if len(candidates) <= per_method:
+        return list(candidates)
+    return rng.sample(candidates, per_method)
 
 
 def main():
@@ -76,11 +44,6 @@ def main():
     )
     parser.add_argument('--out-dir', required=True)
     parser.add_argument('--per-method', type=int, default=30)
-    parser.add_argument(
-        '--max-per-seed', type=int, default=1,
-        help='Maximum cases one source seed may contribute per method. 1 keeps the sample '
-             'free of within-seed clustering; raise it only if the pool is too small.',
-    )
     parser.add_argument('--class-meta', default=None)
     parser.add_argument('--seed', type=int, default=0)
     args = parser.parse_args()
@@ -90,8 +53,6 @@ def main():
     runs = [int(v) for v in args.runs] if args.runs else [0] * len(args.failures)
     if len(runs) != len(args.failures):
         raise ValueError('--runs must have one entry per --failures pack')
-    if args.max_per_seed < 1:
-        raise ValueError('--max-per-seed must be at least 1')
 
     cfg = load_config(args.config)
     normalization = cfg['dataset'].get('normalization', 'none')
@@ -128,12 +89,11 @@ def main():
     coverage = {}
     for method in dict.fromkeys(args.methods):
         candidates = pools[method]
-        selected = balanced_sample(candidates, args.per_method, args.max_per_seed, rng)
+        selected = random_sample(candidates, args.per_method, rng)
         if len(selected) < args.per_method:
             raise RuntimeError(
-                f'Method {method} could only supply {len(selected)} of {args.per_method} cases '
-                f'under --max-per-seed {args.max_per_seed}. Add more runs, or raise the cap and '
-                'rely on the cluster bootstrap in the report.'
+                f'Method {method} could only supply {len(selected)} of {args.per_method} cases; '
+                f'its pool holds {len(candidates)}. Add more runs.'
             )
         seed_counts = defaultdict(int)
         run_counts = defaultdict(int)
@@ -194,7 +154,7 @@ def main():
     save_json(
         {
             'per_method': args.per_method,
-            'max_per_seed': args.max_per_seed,
+            'sampling': 'uniform random without replacement from the pooled cases per method',
             'sampling_seed': args.seed,
             'packs': [
                 {'method': m, 'run': r, 'path': p}
