@@ -121,12 +121,6 @@ unchanged.
 python run_baseline.py --config configs/mnist_lenet5_smoothgrad.yaml --baseline adapt
 ```
 
-Reproduce everything:
-
-```bash
-bash scripts/reproduce_paper.sh
-```
-
 ## Controlled fine-tuning study
 
 All six conditions add training samples derived from the same source samples:
