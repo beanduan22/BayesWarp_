@@ -1,16 +1,3 @@
-"""Shared source-sample manifest for the controlled fine-tuning study.
-
-Every fine-tuning condition in the paper is claimed to add training samples that
-are derived from *the same* source samples: identical identities, identical
-count, identical class distribution. The only thing allowed to vary between
-conditions is how each source sample is turned into added training samples.
-
-This module makes that claim mechanical instead of incidental. A manifest pins
-down the source identities (dataset indices in the seed split), the number of
-added samples derived per source, and a fingerprint over both. Each condition
-loads the same manifest and records the fingerprint in its result file, so a
-mismatch is detectable after the fact rather than assumed away.
-"""
 from __future__ import annotations
 
 from collections import Counter
@@ -41,7 +28,6 @@ def _canonical(manifest: Dict) -> str:
 
 
 def manifest_fingerprint(manifest: Dict) -> str:
-    """Stable hash over the identity-bearing fields of a manifest."""
     return 'sha256:' + hashlib.sha256(_canonical(manifest).encode('utf-8')).hexdigest()
 
 
@@ -111,13 +97,6 @@ def source_labels(manifest: Dict) -> List[int]:
 
 
 def source_tensors(manifest: Dict, seed_dataset) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Materialise the source images from the deterministic seed dataset.
-
-    The seed dataset must use the evaluation transform, not the training
-    transform: pulling sources through a randomised training pipeline would
-    silently apply an augmentation to every condition, which is exactly the
-    confound the controlled study is meant to remove.
-    """
     images: List[torch.Tensor] = []
     labels: List[int] = []
     for entry in manifest['sources']:
@@ -135,17 +114,10 @@ def source_tensors(manifest: Dict, seed_dataset) -> Tuple[torch.Tensor, torch.Te
 
 
 def expand_labels(labels: torch.Tensor, per_source: int) -> torch.Tensor:
-    """Repeat each source label ``per_source`` times, keeping source order."""
     return labels.repeat_interleave(int(per_source))
 
 
 def resolve_pack_seed_ids(pack: Dict, fallback_indices: Optional[Sequence[int]] = None) -> List[int]:
-    """Dataset-level seed ids for a failure pack.
-
-    Packs written after the seed-id change carry ``seed_id`` directly. Older
-    packs only carry the positional ``seed_idx``, so the caller supplies the
-    deterministic seed-subset indices to map position -> dataset index.
-    """
     seed_results = pack.get('seed_results') or []
     if seed_results and 'seed_id' in seed_results[0]:
         return [int(r['seed_id']) for r in seed_results]
@@ -164,7 +136,6 @@ def resolve_pack_seed_ids(pack: Dict, fallback_indices: Optional[Sequence[int]] 
 
 
 def bank_seed_ids(pack: Dict, fallback_indices: Optional[Sequence[int]] = None) -> List[int]:
-    """Dataset-level seed id for every case in a failure bank."""
     bank = pack['failure_bank']
     if bank and 'seed_id' in bank[0]:
         return [int(item['seed_id']) for item in bank]

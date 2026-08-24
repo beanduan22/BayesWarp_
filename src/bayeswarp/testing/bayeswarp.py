@@ -169,13 +169,6 @@ class BayesWarpTester:
         return margin
 
     def _store_failure(self, state: SeedState, record: Dict[str, Any]) -> None:
-        """Keep a bounded uniform sample of a seed's failures.
-
-        Counts and predicted classes are tracked separately in ``state``, so
-        NoF, DoF, FSR and QFF stay exact no matter how few cases are retained.
-        At FSR 1.0 an ImageNet seed produces ~10k cases of ~600 KB each, which
-        is why an unbounded bank is not storable.
-        """
         cap = self.store_cases_per_seed
         if cap is None or len(state.failures) < cap:
             state.failures.append(record)
@@ -194,7 +187,7 @@ class BayesWarpTester:
         mutator,
         state: SeedState,
     ) -> None:
-        surrogate = self._build_surrogate(mutator.dim, mutator.u_bound)
+        surrogate = self._build_surrogate(mutator.dim, mutator.r)
         u = mutator.zero_params(self.device)
 
         fx = seed_margin
@@ -239,7 +232,7 @@ class BayesWarpTester:
         optimizer = CMAES(
             dim=mutator.dim,
             device=self.device,
-            bound=mutator.u_bound,
+            bound=mutator.r,
             sigma0=self.cfg.cma_sigma0,
             population=self.cfg.cma_population,
         )

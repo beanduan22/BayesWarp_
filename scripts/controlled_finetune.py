@@ -1,11 +1,3 @@
-"""Controlled fine-tuning study: one condition per invocation, shared sources.
-
-Every condition adds ``num_sources * per_source`` samples derived from the same
-manifest of source samples, so identity, count and class distribution are held
-fixed across conditions by construction. The manifest fingerprint is written to
-the result file; ``scripts/verify_finetune_protocol.py`` checks that all six
-conditions in a directory really did use the same one.
-"""
 from __future__ import annotations
 import argparse
 import json
@@ -199,9 +191,6 @@ def main():
         image_size=cfg['dataset'].get('image_size'),
     )
 
-    # Sources come from the deterministic evaluation transform, exactly as the
-    # generation seeds do. Reading them from the training dataset would apply a
-    # random crop/flip to every condition and confound the comparison.
     seed_dataset = build_seed_dataset(
         cfg['dataset']['name'],
         cfg['dataset']['root'],

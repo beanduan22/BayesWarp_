@@ -1,16 +1,3 @@
-"""Draw the human-validation sample without clustering it on a few source seeds.
-
-A flat random draw from a failure bank is not a draw of independent cases: one
-prolific source seed can supply many of them, and a Wilson interval computed as
-if they were independent understates the uncertainty. This sampler therefore
-
-* draws from every run supplied, not just run 0;
-* caps how many cases a single source seed may contribute (default: one);
-* rotates over source classes so no class dominates the sample;
-
-and records the run and source seed of every task so the report can still fall
-back to a cluster bootstrap when the cap is loosened.
-"""
 from __future__ import annotations
 import argparse
 from collections import defaultdict
@@ -40,7 +27,6 @@ def denormalize(x: torch.Tensor, normalization: str) -> torch.Tensor:
 
 
 def _interleave_runs(cases, rng: random.Random):
-    """Order one seed's cases so consecutive picks come from different runs."""
     by_run = defaultdict(list)
     for case in cases:
         by_run[case['run']].append(case)
@@ -57,14 +43,6 @@ def _interleave_runs(cases, rng: random.Random):
 
 
 def balanced_sample(candidates, per_method: int, max_per_seed: int, rng: random.Random):
-    """Pick cases that are spread over source seeds, source classes and runs.
-
-    Every case is ranked within its source seed (runs interleaved), so rank 0 is
-    each seed's first contribution. Cases are then ordered by rank first, which
-    means every eligible seed contributes once before any seed contributes twice
-    and ``max_per_seed`` is a hard cap. Within a rank, classes are rotated so no
-    source class can dominate the sample.
-    """
     by_seed = defaultdict(list)
     for case in candidates:
         by_seed[case['seed_id']].append(case)
@@ -75,7 +53,6 @@ def balanced_sample(candidates, per_method: int, max_per_seed: int, rng: random.
         for rank, case in enumerate(ordered[:max_per_seed]):
             ranked.append((rank, case))
 
-    # Round-robin over source classes inside each rank.
     positions = defaultdict(int)
     entries = []
     for rank, case in sorted(ranked, key=lambda pair: (pair[0], rng.random())):

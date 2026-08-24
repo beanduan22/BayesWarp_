@@ -33,10 +33,6 @@ def compute_failure_metrics(
     if len(set(resolved_ids)) != len(resolved_ids):
         raise ValueError('seed ids must be unique so per-seed metrics can be paired by id')
 
-    # `n_failures` / `failure_preds` are the exact totals for a seed. They can
-    # exceed len(r['failures']) when the run kept only a bounded sample of the
-    # cases; every count below is taken from them so the metrics do not depend
-    # on how many cases were retained.
     counts = [int(r.get('n_failures', len(r['failures']))) for r in seed_results]
     preds = [
         [int(v) for v in r['failure_preds']] if 'failure_preds' in r

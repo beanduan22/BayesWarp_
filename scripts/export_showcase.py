@@ -1,14 +1,3 @@
-"""Export a small set of high-fidelity generated cases per dataset.
-
-These are the figure-quality examples: cases whose SCS says the mutant still
-reads as the original class to a human, while the model's prediction changed.
-One case per source seed, spread over source classes, so the showcase is not
-ten variations of the same image.
-
-Each case is written as an original/generated PNG pair plus a side-by-side
-contact sheet, with a JSON record naming the source seed, the label, and both
-predictions.
-"""
 from __future__ import annotations
 import argparse
 from collections import defaultdict
@@ -42,7 +31,6 @@ CIFAR10_CLASSES = (
 
 
 def builtin_class_names(dataset: str):
-    """Class names for the shipped datasets, so records read as words not ids."""
     name = dataset.lower()
     if name == 'mnist':
         return {str(i): f'digit {i}' for i in range(10)}
@@ -92,8 +80,6 @@ def main():
     seed_ids = bank_seed_ids(pack, None) if (seed_results and 'seed_id' in seed_results[0]) \
         else [int(item['seed_idx']) for item in bank]
 
-    # Sample candidates evenly across seeds before scoring, so the SCS budget is
-    # not spent on whichever seed happened to produce the most cases.
     grouped = defaultdict(list)
     for item, seed_id in zip(bank, seed_ids):
         grouped[int(seed_id)].append(item)
@@ -122,7 +108,6 @@ def main():
         eligible = scored
     eligible.sort(key=lambda s: -s['scs'])
 
-    # One case per seed, rotating over source classes.
     picked, used_seeds, class_counts = [], set(), defaultdict(int)
     for entry in sorted(eligible, key=lambda s: (class_counts[int(s['item']['seed_y'])], -s['scs'])):
         if len(picked) >= args.count:

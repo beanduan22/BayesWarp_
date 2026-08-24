@@ -1,10 +1,3 @@
-"""Aggregate the human-validation annotations with clustering-aware intervals.
-
-Wilson intervals assume the annotated cases are independent. They are only
-independent if no source seed contributed more than one case, so this report
-records the clustering it actually sees and always reports a cluster bootstrap
-alongside the Wilson interval, resampling source seeds rather than cases.
-"""
 from __future__ import annotations
 import argparse
 from collections import defaultdict
@@ -28,11 +21,6 @@ def adjudicate(record):
 
 
 def cluster_of(meta, cluster_key: str):
-    """Cluster identity for one annotated case.
-
-    Prefers the dataset-level ``seed_id``; falls back to the positional
-    ``seed_idx`` for keys written before seed ids were recorded.
-    """
     if cluster_key in meta:
         return meta[cluster_key]
     if cluster_key == 'seed_id' and 'seed_idx' in meta:

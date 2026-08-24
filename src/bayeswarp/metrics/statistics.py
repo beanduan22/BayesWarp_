@@ -18,31 +18,9 @@ def paired_difference_ci(a: Sequence[float], b: Sequence[float], confidence: flo
     return mean, mean - half, mean + half
 
 
-def wilcoxon_signed_rank(a: Sequence[float], b: Sequence[float]) -> Dict[str, float]:
-    a = np.asarray(a, dtype=float)
-    b = np.asarray(b, dtype=float)
-    if np.allclose(a, b):
-        return {'statistic': float('nan'), 'p_value': 1.0}
-    result = stats.wilcoxon(a, b, alternative='two-sided', zero_method='wilcox')
-    return {'statistic': float(result.statistic), 'p_value': float(result.pvalue)}
-
-
 def paired_t_test(a: Sequence[float], b: Sequence[float]) -> Dict[str, float]:
     result = stats.ttest_rel(np.asarray(a, dtype=float), np.asarray(b, dtype=float))
     return {'statistic': float(result.statistic), 'p_value': float(result.pvalue)}
-
-
-def holm_adjust(p_values: Sequence[float]) -> List[float]:
-    values = list(p_values)
-    n = len(values)
-    order = sorted(range(n), key=lambda i: values[i])
-    adjusted = [0.0] * n
-    running = 0.0
-    for rank, index in enumerate(order):
-        candidate = (n - rank) * values[index]
-        running = max(running, min(candidate, 1.0))
-        adjusted[index] = running
-    return adjusted
 
 
 def wilson_interval(successes: int, total: int, confidence: float = 0.95) -> Tuple[float, float, float]:
@@ -94,62 +72,6 @@ def median_iqr(values: Sequence[float]) -> Tuple[float, float, float]:
     )
 
 
-def _paired_differences(a: Sequence[float], b: Sequence[float]) -> np.ndarray:
-    diff = np.asarray(a, dtype=float) - np.asarray(b, dtype=float)
-    if diff.ndim != 1:
-        raise ValueError('paired inputs must be one-dimensional')
-    return diff
-
-
-def _walsh_averages(diff: np.ndarray) -> np.ndarray:
-    i, j = np.triu_indices(diff.size, k=0)
-    return np.sort((diff[i] + diff[j]) / 2.0)
-
-
-def hodges_lehmann(a: Sequence[float], b: Sequence[float]) -> float:
-    """Median of the Walsh averages of the paired differences.
-
-    This is the location estimate whose null hypothesis the Wilcoxon signed-rank
-    test evaluates, so it is the estimate that belongs next to a Wilcoxon p-value.
-    """
-    diff = _paired_differences(a, b)
-    if diff.size == 0:
-        return float('nan')
-    return float(np.median(_walsh_averages(diff)))
-
-
-def hodges_lehmann_ci(
-    a: Sequence[float],
-    b: Sequence[float],
-    confidence: float = 0.95,
-) -> Tuple[float, float, float]:
-    """Distribution-free CI for the Hodges-Lehmann estimate of the paired shift.
-
-    Uses the normal approximation to the signed-rank distribution with a
-    continuity correction to pick the order statistics of the Walsh averages.
-    Returns ``(estimate, low, high)``.
-    """
-    diff = _paired_differences(a, b)
-    n = diff.size
-    if n == 0:
-        return float('nan'), float('nan'), float('nan')
-    walsh = _walsh_averages(diff)
-    estimate = float(np.median(walsh))
-    total = walsh.size
-    if n < 3:
-        return estimate, float('nan'), float('nan')
-    z = float(stats.norm.ppf(0.5 + confidence / 2.0))
-    mu = n * (n + 1) / 4.0
-    sigma = math.sqrt(n * (n + 1) * (2 * n + 1) / 24.0)
-    k = int(math.floor(mu - z * sigma - 0.5))
-    if k < 0:
-        return estimate, float(walsh[0]), float(walsh[-1])
-    k = min(k, total // 2 - 1) if total >= 2 else 0
-    if k < 0:
-        return estimate, float(walsh[0]), float(walsh[-1])
-    return estimate, float(walsh[k]), float(walsh[total - 1 - k])
-
-
 def cluster_bootstrap_interval(
     labels: Sequence[int],
     clusters: Sequence,
@@ -157,13 +79,6 @@ def cluster_bootstrap_interval(
     iterations: int = 10000,
     seed: int = 0,
 ) -> Dict[str, float]:
-    """Percentile bootstrap for a proportion when observations share clusters.
-
-    Clusters (for example, the source seed a generated case came from) are
-    resampled with replacement; every observation inside a resampled cluster is
-    carried along. This keeps the interval honest when the same source seed
-    contributes several annotated cases, which a Wilson interval would ignore.
-    """
     values = np.asarray(list(labels), dtype=float)
     keys = list(clusters)
     if values.size != len(keys):

@@ -1,15 +1,3 @@
-"""Statistical tests for the paper, aligned by explicit seed identity.
-
-Two things this deliberately does not do:
-
-* it never pairs two vectors by array position. Per-seed metrics are aligned by
-  the dataset-level seed id recorded alongside them, and a length mismatch is an
-  error rather than a silent truncation to the shorter side;
-* it never reports a confidence interval whose estimand disagrees with the
-  p-value beside it. Every paired result carries both the mean difference with
-  its t interval and t p-value, and the Hodges-Lehmann shift with its
-  distribution-free interval and Wilcoxon p-value, each labelled.
-"""
 from __future__ import annotations
 import argparse
 import glob
@@ -23,16 +11,12 @@ import numpy as np
 from bayeswarp.utils.io import save_json
 from bayeswarp.metrics.statistics import (
     cohen_kappa,
-    hodges_lehmann_ci,
-    holm_adjust,
     mean_std,
     paired_difference_ci,
     paired_t_test,
-    wilcoxon_signed_rank,
 )
 
 
-# metric -> (values key, seed-id key)
 SEED_KEYS = {
     'nof': ('per_seed_cases', 'seed_ids'),
     'dof': ('per_seed_dof', 'seed_ids'),
@@ -66,7 +50,6 @@ def seed_series(path: str, run: dict, value_key: str, id_key: str):
 
 
 def average_across_runs(runs, value_key: str, id_key: str, allow_intersection: bool):
-    """Mean per seed across runs, keyed by seed id."""
     series = [seed_series(path, run, value_key, id_key) for path, run in runs]
     id_sets = [set(s) for s in series]
     shared = set.intersection(*id_sets)
@@ -87,10 +70,8 @@ def paired_result(a_values, b_values, ids):
     a = np.array([a_values[i] for i in ids], dtype=float)
     b = np.array([b_values[i] for i in ids], dtype=float)
 
-    mean, t_low, t_high = paired_difference_ci(a, b)
+    mean, low, high = paired_difference_ci(a, b)
     t_result = paired_t_test(a, b)
-    hl, hl_low, hl_high = hodges_lehmann_ci(a, b)
-    w_result = wilcoxon_signed_rank(a, b)
 
     return {
         'n_pairs': int(a.size),
@@ -99,22 +80,14 @@ def paired_result(a_values, b_values, ids):
         'median_a': float(np.median(a)),
         'median_b': float(np.median(b)),
         'mean_difference': mean,
-        'mean_difference_ci_low': t_low,
-        'mean_difference_ci_high': t_high,
+        'mean_difference_ci_low': low,
+        'mean_difference_ci_high': high,
         'mean_difference_p_value': t_result['p_value'],
         'mean_difference_statistic': t_result['statistic'],
-        'hodges_lehmann_shift': hl,
-        'hodges_lehmann_ci_low': hl_low,
-        'hodges_lehmann_ci_high': hl_high,
-        'wilcoxon_p_value': w_result['p_value'],
-        'wilcoxon_statistic': w_result['statistic'],
-        'primary_test': 'wilcoxon_signed_rank',
-        'primary_estimate': 'hodges_lehmann_shift',
-        'estimand_note': (
-            'mean_difference_ci pairs with mean_difference_p_value (paired t); '
-            'hodges_lehmann_ci pairs with wilcoxon_p_value (signed rank). '
-            'The two estimands coincide only for symmetric differences.'
-        ),
+        'test': 'paired_t_two_sided',
+        'estimate': 'mean_difference',
+        'confidence_level': 0.95,
+        'multiplicity_adjustment': 'none',
     }
 
 
@@ -176,7 +149,6 @@ def paired_run(args):
     array_a, array_b = np.asarray(a, dtype=float), np.asarray(b, dtype=float)
     mean, low, high = paired_difference_ci(array_a, array_b)
     result = paired_t_test(array_a, array_b)
-    wilcoxon = wilcoxon_signed_rank(array_a, array_b)
     mean_a, std_a = mean_std(a)
     mean_b, std_b = mean_std(b)
     return {
@@ -194,66 +166,10 @@ def paired_run(args):
         'mean_difference_ci_high': high,
         'mean_difference_p_value': result['p_value'],
         'mean_difference_statistic': result['statistic'],
-        'wilcoxon_p_value': wilcoxon['p_value'],
-        'primary_test': 'paired_t',
-        'primary_estimate': 'mean_difference',
-        'estimand_note': (
-            'mean_difference_ci and mean_difference_p_value share the paired-t estimand. '
-            'wilcoxon_p_value is reported for reference only and has no interval here.'
-        ),
-    }
-
-
-def holm(args):
-    values = [float(v) for v in args.p_values]
-    return {'mode': 'holm', 'raw': values, 'adjusted': holm_adjust(values)}
-
-
-def holm_family(args):
-    """Holm correction over a family of result files, keeping labels attached.
-
-    Used for the six SCS settings, so the reported significance is family-wise
-    corrected rather than six independent tests presented side by side.
-    """
-    paths = list(args.inputs)
-    labels = list(args.labels) if args.labels else [Path(p).stem for p in paths]
-    if len(labels) != len(paths):
-        raise ValueError('--labels must have one entry per --inputs file')
-
-    # The interval belonging to an estimate shares its prefix, so the family
-    # report never pairs an estimate with the other estimand's interval.
-    ci_prefix = args.estimate_field[:-len('_shift')] if args.estimate_field.endswith('_shift') else args.estimate_field
-
-    entries = []
-    for path, label in zip(paths, labels):
-        payload = json.loads(Path(path).read_text(encoding='utf-8'))
-        if args.p_field not in payload:
-            raise KeyError(f'{path} has no "{args.p_field}" field')
-        entries.append({
-            'label': label,
-            'path': path,
-            'metric': payload.get('metric'),
-            'n_pairs': payload.get('n_pairs'),
-            'estimate_field': args.estimate_field,
-            'estimate': payload.get(args.estimate_field),
-            'ci_low': payload.get(f'{ci_prefix}_ci_low'),
-            'ci_high': payload.get(f'{ci_prefix}_ci_high'),
-            'p_value': float(payload[args.p_field]),
-        })
-
-    adjusted = holm_adjust([e['p_value'] for e in entries])
-    for entry, value in zip(entries, adjusted):
-        entry['p_adjusted'] = value
-        entry['significant_at_0.05'] = bool(value < 0.05)
-    return {
-        'mode': 'holm_family',
-        'family': args.family_name,
-        'p_field': args.p_field,
-        'estimate_field': args.estimate_field,
-        'family_size': len(entries),
-        'method': 'holm_bonferroni',
-        'results': entries,
-        'all_significant_at_0.05': all(e['significant_at_0.05'] for e in entries),
+        'test': 'paired_t_two_sided',
+        'estimate': 'mean_difference',
+        'confidence_level': 0.95,
+        'multiplicity_adjustment': 'none',
     }
 
 
@@ -286,20 +202,6 @@ def main():
     run_parser.add_argument('--metric', required=True)
     run_parser.add_argument('--out', required=True)
     run_parser.set_defaults(handler=paired_run)
-
-    holm_parser = sub.add_parser('holm')
-    holm_parser.add_argument('--p-values', nargs='+', required=True)
-    holm_parser.add_argument('--out', required=True)
-    holm_parser.set_defaults(handler=holm)
-
-    family_parser = sub.add_parser('holm-family')
-    family_parser.add_argument('--inputs', nargs='+', required=True)
-    family_parser.add_argument('--labels', nargs='*', default=None)
-    family_parser.add_argument('--family-name', default='unnamed')
-    family_parser.add_argument('--p-field', default='wilcoxon_p_value')
-    family_parser.add_argument('--estimate-field', default='hodges_lehmann_shift')
-    family_parser.add_argument('--out', required=True)
-    family_parser.set_defaults(handler=holm_family)
 
     kappa_parser = sub.add_parser('kappa')
     kappa_parser.add_argument('--annotations', required=True)

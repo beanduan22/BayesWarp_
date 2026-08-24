@@ -13,18 +13,11 @@ SALIENCY="gradcam ig smoothgrad"
 CIFAR_REF=configs/cifar10_resnet18_smoothgrad.yaml
 CIFAR_REF_DIR=results/cifar10_resnet18_smoothgrad
 
-# Controlled fine-tuning protocol: 100 shared source samples, 10 added training
-# samples derived from each, identical across all six conditions.
 NUM_SOURCES=100
 PER_SOURCE=10
 SCS_THRESHOLD=0.8
 FINETUNE_SOURCES="${CIFAR_REF_DIR}/finetune_sources.json"
 
-# Best-performing baseline per setting, used as the comparison side of the
-# per-seed SCS tests that the Holm family corrects over.
-# Cases retained per seed. NoF/DoF/FSR/QFF are computed over every failure and
-# stay exact; only the stored bank is bounded. At FSR 1.0 an uncapped ImageNet
-# bank runs to hundreds of GB.
 STORE_SMALL=100
 STORE_IMAGENET=40
 
@@ -74,8 +67,6 @@ for base in $MNIST_CONFIGS $CIFAR_CONFIGS $IMAGENET_CONFIGS; do
   done
 done
 
-# Reproduction-package samples: a browsable, size-bounded view of the run 0
-# packs, plus ten high-fidelity showcase cases per setting.
 for base in $MNIST_CONFIGS $CIFAR_CONFIGS $IMAGENET_CONFIGS; do
   python scripts/export_sample_pack.py \
     --config "configs/${base}_smoothgrad.yaml" \
@@ -162,10 +153,6 @@ for configuration in svgp_ucb svgp_ei svgp_kappa0 svgp_k1 no_noise exactgp_ucb c
   done
 done
 
-# Controlled fine-tuning study. The source manifest is built once, from every
-# failure pack the generated conditions draw on, so all six conditions in all
-# five runs add samples derived from the same NUM_SOURCES sources, PER_SOURCE
-# samples each, with the same class distribution.
 FINETUNE_PACKS=""
 for run in $RUNS; do
   FINETUNE_PACKS="$FINETUNE_PACKS ${CIFAR_REF_DIR}/failures_main_run${run}.pt"
@@ -286,9 +273,6 @@ python scripts/export_showcase.py \
   --out samples/imagenet_efficientnetb0_smoothgrad/showcase \
   --count 10 --min-scs 0.8
 
-# Human validation. Cases are drawn across all five runs, at most one per source
-# seed, rotating over source classes, so the 30 cases per method are 30 distinct
-# sources rather than a cluster of repeats from a few prolific seeds.
 sample_human_validation() {
   base="$1"
   shift
@@ -326,32 +310,16 @@ for base in $IMAGENET_CONFIGS; do
   sample_human_validation "$base" bayeswarp:main adapt:adapt nsgen:nsgen
 done
 
-# Per-seed SCS, BayesWarp vs the strongest baseline in each of the six settings,
-# then a single Holm correction over that family of six tests. The per-seed SCS
-# values are paired by source-seed id, not by array position.
 mkdir -p results/statistics
-SCS_STAT_FILES=""
-SCS_STAT_LABELS=""
 for pair in $SCS_PAIRS; do
   base="${pair%%:*}"
   baseline="${pair##*:}"
-  out="results/statistics/scs_${base}_bayeswarp_vs_${baseline}.json"
   python scripts/compute_statistics.py paired-seed \
     --a "results/${base}_smoothgrad/evaluation_main_run*.json" \
     --b "results/${base}_smoothgrad/evaluation_${baseline}_run*.json" \
     --metric scs \
     --allow-seed-intersection \
-    --out "$out"
-  SCS_STAT_FILES="$SCS_STAT_FILES $out"
-  SCS_STAT_LABELS="$SCS_STAT_LABELS ${base}_vs_${baseline}"
+    --out "results/statistics/scs_${base}_bayeswarp_vs_${baseline}.json"
 done
-
-python scripts/compute_statistics.py holm-family \
-  --inputs $SCS_STAT_FILES \
-  --labels $SCS_STAT_LABELS \
-  --family-name "SCS: BayesWarp vs strongest baseline across six settings" \
-  --p-field wilcoxon_p_value \
-  --estimate-field hodges_lehmann_shift \
-  --out results/statistics/scs_holm_family.json
 
 python scripts/aggregate_results.py --root results --out results/summary.csv

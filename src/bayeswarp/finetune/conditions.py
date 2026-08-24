@@ -1,19 +1,3 @@
-"""Fine-tuning conditions for the controlled study.
-
-Protocol (identical for every condition):
-
-* the same ``num_sources`` source samples, identified by dataset index in the
-  manifest built by ``scripts/build_finetune_sources.py``;
-* exactly ``per_source`` added training samples derived from each source;
-* source order preserved, so added sample ``k`` of source ``i`` always sits at
-  position ``i * per_source + k``.
-
-Only the derivation differs between conditions. Each condition therefore returns
-``(X, y, info)`` where ``info`` records condition-specific diagnostics, most
-importantly how many *distinct* samples the derivation actually produced per
-source: ``continued`` duplicates by construction, and AutoAttack is close to
-deterministic, so those numbers belong in the results rather than in a footnote.
-"""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -44,7 +28,6 @@ def _check_shape(X: torch.Tensor, num_sources: int, per_source: int) -> None:
 
 
 def _distinct_per_source(X: torch.Tensor, num_sources: int, per_source: int) -> float:
-    """Mean number of pairwise-distinct added samples per source."""
     flat = X.reshape(num_sources, per_source, -1)
     totals = 0
     for i in range(num_sources):
@@ -62,12 +45,6 @@ def continued_condition(
     y: torch.Tensor,
     per_source: int,
 ) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
-    """Unmodified source samples, repeated to match the added-sample budget.
-
-    The repetition is deliberate: this condition holds the number of added
-    samples and the number of gradient steps fixed while contributing no new
-    information, which is what the other conditions are measured against.
-    """
     added = X.repeat_interleave(int(per_source), dim=0)
     _check_shape(added, X.size(0), per_source)
     return added, expand_labels(y, per_source), {
@@ -84,7 +61,6 @@ def standard_condition(
     per_source: int,
     seed: int = 0,
 ) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
-    """``per_source`` independent draws from the dataset's standard augmentation."""
     transform = standard_augmentation(dataset_name)
     outputs: List[torch.Tensor] = []
     with torch.random.fork_rng(devices=[]):
@@ -125,12 +101,6 @@ def random_localized_condition(
     per_source: int,
     seed: int = 0,
 ) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
-    """``per_source`` independent uniform perturbations inside the same critical region.
-
-    The region and the mutator are built once per source, so the only thing that
-    varies across the ``per_source`` draws is the perturbation vector: this is
-    BayesWarp's search space explored at random instead of by the surrogate.
-    """
     p_min, p_max = pixel_range(dataset_name, normalization)
     generator = torch.Generator().manual_seed(int(seed))
     outputs: List[torch.Tensor] = []
@@ -193,12 +163,6 @@ def autoattack_condition(
     seed: int = 0,
     num_classes: Optional[int] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
-    """``per_source`` AutoAttack rounds per source, each with a different attack seed.
-
-    AutoAttack is only partly randomised, so repeated rounds can collapse onto
-    the same adversarial example. ``distinct_per_source`` in the returned info
-    reports how often that happened instead of hiding it.
-    """
     try:
         import torchattacks
     except Exception as e:
@@ -234,7 +198,6 @@ def autoattack_condition(
             chunks.append((lo + adv * (hi - lo)).cpu())
         rounds.append(torch.cat(chunks, dim=0))
 
-    # rounds[k][i] -> position i * per_source + k
     added = torch.stack(rounds, dim=1).reshape(-1, *X.shape[1:])
     _check_shape(added, X.size(0), per_source)
     info = {
@@ -256,7 +219,6 @@ def group_bank_by_source(
     scs_scores: Optional[Sequence[float]] = None,
     scs_threshold: Optional[float] = None,
 ) -> Dict[int, List[dict]]:
-    """Group generated cases by source dataset index, optionally filtered by SCS."""
     if len(seed_ids) != len(failure_bank):
         raise ValueError('seed_ids must have one entry per case in the failure bank')
     if scs_threshold is not None and scs_scores is None:
@@ -278,12 +240,6 @@ def select_generated(
     per_source: int,
     seed: int = 0,
 ) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
-    """Take exactly ``per_source`` generated cases from each requested source.
-
-    Within a source, cases are drawn round-robin over the predicted class so the
-    selection is not dominated by whichever target class happened to be easiest;
-    the order inside each class is shuffled with the supplied seed.
-    """
     import random
 
     rng = random.Random(int(seed))

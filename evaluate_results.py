@@ -37,7 +37,6 @@ def as_batch(x: torch.Tensor) -> torch.Tensor:
 
 
 def fallback_indices(cfg, model, device, pack):
-    """Seed-subset dataset indices, needed only for packs written before seed ids existed."""
     seed_results = pack.get('seed_results') or []
     if seed_results and 'seed_id' in seed_results[0]:
         return None
@@ -94,9 +93,6 @@ def main():
     metrics = dict(pack.get('metrics', {}))
     metrics['label'] = args.label
 
-    # Packs written before seed ids existed carry positional indices only. Resolve
-    # them here so downstream statistics can still pair by seed identity instead of
-    # by array position.
     seed_fallback = fallback_indices(cfg, model, device, pack)
     if 'seed_ids' not in metrics:
         seed_results = pack.get('seed_results') or []
@@ -119,9 +115,6 @@ def main():
         metrics['SCS'] = float(sum(scores) / max(1, len(scores)))
         metrics['SCS_strata'] = scs_strata(scores)
 
-        # Per-seed SCS is scored on a per-seed stratified draw, not on the global
-        # quality subsample: paired-by-seed statistics need the same seed set on
-        # both sides, which a global subsample does not guarantee.
         bank_ids = bank_seed_ids(pack, seed_fallback)
         by_seed = defaultdict(list)
         for seed_id, item in zip(bank_ids, failure_bank):
@@ -140,8 +133,6 @@ def main():
         metrics['per_seed_scs'] = per_seed_scs
         metrics['per_seed_scs_cases'] = per_seed_counts
         metrics['scs_per_seed_cap'] = int(args.scs_per_seed)
-        # SCS is undefined for a seed that produced no cases; record which seeds
-        # those are so a paired-by-seed comparison can account for them explicitly.
         all_ids = [int(v) for v in metrics.get('seed_ids', [])]
         metrics['scs_seeds_without_cases'] = sorted(set(all_ids) - set(scs_seed_ids))
     except Exception as e:

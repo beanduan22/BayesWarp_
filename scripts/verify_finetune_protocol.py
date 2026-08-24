@@ -1,10 +1,3 @@
-"""Check that every controlled fine-tuning condition really used the same sources.
-
-Reads the ``controlled_finetune_*.json`` files a study produced and asserts the
-properties the paper claims: one shared source manifest, the same number of
-added samples, and the same added-sample class distribution across conditions.
-Exits non-zero with a description of the first violation.
-"""
 from __future__ import annotations
 import argparse
 import glob

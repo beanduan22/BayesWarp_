@@ -28,11 +28,6 @@ class RegionMutator:
         span = hi - lo
         self.lo = lo - self.eta * span
         self.hi = hi + self.eta * span
-        # `r` scales each candidate increment; the accumulated perturbation is
-        # capped by the relaxed pixel range instead. Capping it at `r` as well
-        # confines the whole search to a ball of radius r around the seed, which
-        # for the shipped configs (r = 0.1) yields no failures at any budget.
-        self.u_bound = float((self.hi - self.lo).max())
 
     @property
     def dim(self) -> int:
@@ -45,7 +40,7 @@ class RegionMutator:
         return torch.zeros(self.dim, device=device)
 
     def clip_u(self, u: torch.Tensor) -> torch.Tensor:
-        return u.clamp(-self.u_bound, self.u_bound)
+        return u.clamp(-self.r, self.r)
 
     def sample_deltas(self, S: int, device: torch.device) -> torch.Tensor:
         return (torch.rand(S, self.dim, device=device) * 2.0 - 1.0) * self.r

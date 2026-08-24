@@ -1,16 +1,3 @@
-"""Build the shared source manifest for the controlled fine-tuning study.
-
-The paper's claim is that all six conditions add training samples derived from
-the same source samples, the same number of them, with the same class
-distribution. That is only true if the source set is fixed *before* the
-conditions run, and if every source can actually supply ``--per-source`` samples
-under every condition -- including the generated ones, where a source only
-qualifies if it produced enough failures (and enough high-SCS failures).
-
-This script computes that eligible set across every failure pack the study will
-draw from, picks ``--num-sources`` of them deterministically, and writes a
-manifest with a fingerprint that each condition records in its output.
-"""
 from __future__ import annotations
 import argparse
 import hashlib

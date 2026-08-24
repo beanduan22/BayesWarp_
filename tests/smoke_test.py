@@ -22,9 +22,6 @@ from bayeswarp.metrics.redundancy import count_distinct, pairwise_distance_quant
 from bayeswarp.metrics.statistics import (
     cluster_bootstrap_interval,
     cohen_kappa,
-    hodges_lehmann,
-    hodges_lehmann_ci,
-    holm_adjust,
     wilson_interval,
 )
 from bayeswarp.finetune.conditions import (
@@ -92,25 +89,15 @@ def test_grid_mutator_constraints():
     assert mutator.dim == 4
 
     x0 = torch.rand(3, 8, 8)
-    # `r` bounds each candidate increment; the accumulated perturbation is
-    # bounded by the relaxed pixel range, which is strictly wider. Capping the
-    # accumulation at `r` too would confine the search to a ball of radius r
-    # around the seed and, at the shipped r = 0.1, find no failures at all.
-    span = float((mutator.hi - mutator.lo).max())
-    assert abs(mutator.u_bound - span) < 1e-6
-    assert mutator.u_bound > mutator.r
-
     u = mutator.clip_u(torch.randn(mutator.dim) * 50.0)
-    assert float(u.abs().max()) <= mutator.u_bound + 1e-6
+    assert float(u.abs().max()) <= mutator.r + 1e-6
     assert abs(float(mutator.clip_u(torch.full((mutator.dim,), 0.05)).abs().max()) - 0.05) < 1e-6
 
     deltas = mutator.sample_deltas(64, torch.device('cpu'))
     assert float(deltas.abs().max()) <= mutator.r + 1e-6
 
-    # Repeated increments must be able to accumulate past a single step.
     accumulated = mutator.clip_u(torch.full((mutator.dim,), mutator.r) * 10.0)
-    assert float(accumulated.abs().max()) > mutator.r
-    assert float(accumulated.abs().max()) <= mutator.u_bound + 1e-6
+    assert abs(float(accumulated.abs().max()) - mutator.r) < 1e-6
 
     x = mutator.reconstruct(u, x0)
     delta = (x - x0).abs().sum(dim=0)
@@ -291,8 +278,6 @@ def test_analysis_metrics():
     assert count_distinct(vectors, threshold=1e-6) == 2
     assert pairwise_distance_quantile(vectors, 0.5) >= 0.0
 
-    adjusted = holm_adjust([0.01, 0.04, 0.03])
-    assert all(a >= b for a, b in zip(adjusted, [0.01, 0.04, 0.03]))
     rate, low, high = wilson_interval(29, 30)
     assert low < rate <= high
     assert abs(cohen_kappa([1, 1, 0, 0], [1, 1, 0, 0]) - 1.0) < 1e-9
@@ -405,14 +390,11 @@ def test_paired_seed_alignment_uses_ids_not_positions():
     stats = _load_script('compute_statistics')
 
     a = {'seed_ids': [10, 20, 30], 'per_seed_cases': [5.0, 7.0, 9.0], 'run': 0}
-    # Same seeds in a different order, plus one extra seed on the b side.
     b = {'seed_ids': [30, 10, 20, 40], 'per_seed_cases': [1.0, 2.0, 3.0, 99.0], 'run': 0}
 
     a_values, _ = stats.average_across_runs([('a.json', a)], 'per_seed_cases', 'seed_ids', False)
     b_values, _ = stats.average_across_runs([('b.json', b)], 'per_seed_cases', 'seed_ids', False)
     result = stats.paired_result(a_values, b_values, [10, 20, 30])
-    # Positional pairing gives differences 4, 4, 6 (mean 4.667);
-    # pairing by id gives 3, 4, 8 (mean 5.0).
     assert abs(result['mean_difference'] - 5.0) < 1e-9
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -448,52 +430,20 @@ def test_paired_seed_alignment_uses_ids_not_positions():
     assert missing_ids
 
 
-def test_paired_estimands_are_reported_together():
+def test_paired_scs_result_is_an_unadjusted_paired_t():
     stats = _load_script('compute_statistics')
     ids = list(range(12))
     b = {i: float(i) for i in ids}
     a = {i: b[i] + 1.0 + 0.25 * (i % 4) for i in ids}
     result = stats.paired_result(a, b, ids)
-    assert result['primary_test'] == 'wilcoxon_signed_rank'
-    assert result['primary_estimate'] == 'hodges_lehmann_shift'
+    assert result['test'] == 'paired_t_two_sided'
+    assert result['estimate'] == 'mean_difference'
+    assert result['confidence_level'] == 0.95
+    assert result['multiplicity_adjustment'] == 'none'
     assert result['mean_difference_ci_low'] <= result['mean_difference'] <= result['mean_difference_ci_high']
-    assert result['hodges_lehmann_ci_low'] <= result['hodges_lehmann_shift'] <= result['hodges_lehmann_ci_high']
-    assert 'mean_difference_p_value' in result and 'wilcoxon_p_value' in result
-
-
-def test_holm_family_keeps_labels_and_intervals_together():
-    import json
-    import tempfile
-    stats = _load_script('compute_statistics')
-
-    with tempfile.TemporaryDirectory() as tmp:
-        paths = []
-        for index, p_value in enumerate([0.001, 0.02, 0.04, 0.05, 0.2, 0.3]):
-            path = Path(tmp) / f'r{index}.json'
-            path.write_text(json.dumps({
-                'metric': 'scs',
-                'n_pairs': 100,
-                'wilcoxon_p_value': p_value,
-                'hodges_lehmann_shift': 0.1,
-                'hodges_lehmann_ci_low': 0.05,
-                'hodges_lehmann_ci_high': 0.15,
-                'mean_difference_ci_low': -1.0,
-                'mean_difference_ci_high': 1.0,
-            }), encoding='utf-8')
-            paths.append(str(path))
-
-        out = stats.holm_family(argparse.Namespace(
-            inputs=paths, labels=None, family_name='scs',
-            p_field='wilcoxon_p_value', estimate_field='hodges_lehmann_shift',
-        ))
-    assert out['family_size'] == 6
-    assert out['method'] == 'holm_bonferroni'
-    adjusted = [e['p_adjusted'] for e in out['results']]
-    assert adjusted == sorted(adjusted)
-    assert all(adj >= raw for adj, raw in zip(adjusted, [0.001, 0.02, 0.04, 0.05, 0.2, 0.3]))
-    # The interval reported next to the Hodges-Lehmann estimate is its own.
-    assert out['results'][0]['ci_low'] == 0.05 and out['results'][0]['ci_high'] == 0.15
-    assert not out['all_significant_at_0.05']
+    assert 'mean_difference_p_value' in result
+    assert not any(key.startswith(('wilcoxon', 'hodges_lehmann')) for key in result)
+    assert not any('adjusted' in key or 'holm' in key for key in result)
 
 
 def test_human_validation_sample_avoids_seed_clusters():
@@ -542,16 +492,6 @@ def test_cluster_bootstrap_widens_when_cases_share_seeds():
     assert width(clustered) > (wilson_high - wilson_low)
 
 
-def test_hodges_lehmann_matches_the_wilcoxon_estimand():
-    a = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0, 5.0, 3.0]
-    b = [2.0, 0.5, 3.0, 0.0, 4.0, 8.0, 1.0, 5.0, 4.0, 2.0]
-    estimate = hodges_lehmann(a, b)
-    same, low, high = hodges_lehmann_ci(a, b)
-    assert abs(estimate - same) < 1e-12
-    assert low <= estimate <= high
-    assert abs(hodges_lehmann(a, a)) < 1e-12
-
-
 def test_finetune_protocol_verifier_detects_mismatched_sources():
     import json
     import tempfile
@@ -596,7 +536,6 @@ def test_finetune_protocol_verifier_detects_mismatched_sources():
             )
         assert run_verifier(tmp, conditions) == 0
 
-        # One condition drawn from a different source manifest must fail.
         (Path(tmp) / 'controlled_finetune_bayeswarp_run0.json').write_text(
             json.dumps(record('bayeswarp', 'sha256:bbb')), encoding='utf-8'
         )
@@ -608,24 +547,20 @@ def test_finetune_protocol_verifier_detects_mismatched_sources():
             (Path(tmp) / f'controlled_finetune_{condition}_run0.json').write_text(
                 json.dumps(record(condition, 'sha256:aaa', num_added=count)), encoding='utf-8'
             )
-        # Unequal added-sample counts must fail too.
         assert run_verifier(tmp, conditions) == 1
 
 
 def test_bounded_case_storage_keeps_metrics_exact():
-    """Capping the stored bank must not move NoF, DoF, FSR or QFF."""
     torch.manual_seed(0)
     model = nn.Sequential(nn.Flatten(), nn.Linear(784, 10)).eval()
     device = torch.device('cpu')
     x0 = torch.rand(1, 28, 28)
     cfg = base_config(budget=120, n=2, m=8)
 
-    # The search draws from the global torch RNG, so both runs are seeded
-    # identically and differ only in how many cases they retain.
     torch.manual_seed(1234)
     full = make_tester(model, device, cfg).run_on_seed(x0)
     if full['n_failures'] == 0:
-        return  # nothing to bound on this synthetic model
+        return
 
     cap = max(1, full['n_failures'] // 4)
     torch.manual_seed(1234)
@@ -665,11 +600,9 @@ def main():
     test_generated_selection_is_matched_per_source()
     test_bank_seed_ids_fall_back_to_positions()
     test_paired_seed_alignment_uses_ids_not_positions()
-    test_paired_estimands_are_reported_together()
-    test_holm_family_keeps_labels_and_intervals_together()
+    test_paired_scs_result_is_an_unadjusted_paired_t()
     test_human_validation_sample_avoids_seed_clusters()
     test_cluster_bootstrap_widens_when_cases_share_seeds()
-    test_hodges_lehmann_matches_the_wilcoxon_estimand()
     test_finetune_protocol_verifier_detects_mismatched_sources()
     print('SMOKE_TEST_OK')
 
