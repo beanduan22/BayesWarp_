@@ -129,9 +129,6 @@ differs. That is enforced by a source manifest built once, before any condition
 runs, and recorded in every result file.
 
 ```bash
-# 100 shared sources, 10 added samples derived from each -> 1000 per condition.
-# A source is eligible only if every failure pack the generated conditions draw
-# on supplies at least 10 cases for it, and at least 10 above the SCS threshold.
 python scripts/build_finetune_sources.py \
   --config configs/cifar10_resnet18_smoothgrad.yaml \
   --failures results/cifar10_resnet18_smoothgrad/failures_main_run{0,1,2,3,4}.pt \
@@ -144,7 +141,6 @@ python scripts/controlled_finetune.py \
   --sources results/cifar10_resnet18_smoothgrad/finetune_sources.json \
   --run 0
 
-# Then check that every condition really used the same manifest.
 python scripts/verify_finetune_protocol.py \
   --results "results/cifar10_resnet18_smoothgrad/controlled_finetune_*.json" \
   --expect-conditions continued standard random autoattack high_scs bayeswarp
@@ -160,12 +156,4 @@ Per condition, the `per_source` samples derived from one source are:
 | `autoattack` | AutoAttack rounds with different attack seeds | often fewer than `per_source`; AutoAttack is only partly randomised |
 | `bayeswarp` | generated cases for that source, round-robin over predicted class | up to `per_source` |
 | `high_scs` | the same, restricted to cases above the SCS threshold | up to `per_source` |
-
-Each result file records the realised `distinct_per_source`, so a condition that
-collapses onto duplicates is visible in the results rather than assumed away.
-
-Source images are read through the deterministic evaluation transform, the same
-one the generation seeds use. Reading them from the training dataset would apply
-a random crop and flip to every condition, which would confound the comparison.
-
 
