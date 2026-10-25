@@ -22,6 +22,7 @@ MNIST and CIFAR-10 download automatically to `./data` on first run.
 
 ImageNet must be provided manually in `./imagenet/` with this layout:
 
+
 ```
 imagenet/
   train/<class>/*.JPEG
